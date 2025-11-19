@@ -1,0 +1,19 @@
+{
+  "name": "node-mysql-api",
+  "version": "1.0.0",
+  "description": "Node.js API for job applications",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "express": "^4.17.1",
+    "mysql2": "^2.3.3",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1"
+  },
+
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}

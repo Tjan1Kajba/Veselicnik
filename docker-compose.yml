@@ -1,0 +1,24 @@
+services:
+  izgubljeni_predmeti_web:
+    build:
+      context: ./izgubljeni_predmeti/webserver
+      dockerfile: Dockerfile.development
+    restart: unless-stopped
+    env_file:
+      - ./izgubljeni_predmeti/.env
+    image: izgubljeni_predmeti_web:latest #image za caching
+    volumes:
+      - ./izgubljeni_predmeti/webserver:/usr/src/app
+      - /usr/src/app/node_modules
+    ports:
+      - "5000:5000"
+    networks:
+      - appnet
+
+
+
+
+
+networks:
+  appnet:
+    driver: bridge
