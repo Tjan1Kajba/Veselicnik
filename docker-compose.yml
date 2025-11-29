@@ -1,24 +1,12 @@
+version: "3.8"
 
 services:
-  
-  #izgubljeni_predmeti_web:
-    #build:
-    #  context: ./izgubljeni_predmeti/webserver
-    #  dockerfile: Dockerfile.development
-   # restart: unless-stopped
-   # env_file:
-    #  - ./izgubljeni_predmeti/.env
-   # volumes:
-     # - ./izgubljeni_predmeti/webserver:/usr/src/app
-     # - /usr/src/app/node_modules
-    #ports:
-   #   - "5000:5000"
-  #  networks:
- #     - app-network
-
+  # MongoDB for Food Order Service
   food-mongo:
     image: mongo:latest
     container_name: food-order-mongo
+    ports:
+      - "27017:27017"
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: secret
@@ -26,10 +14,19 @@ services:
       - food_mongo_data:/data/db
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
+  # MongoDB for Music Service
   music-mongo:
     image: mongo:latest
     container_name: music-requests-mongo
+    ports:
+      - "27018:27017"
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: secret
@@ -37,12 +34,19 @@ services:
       - music_mongo_data:/data/db
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
+  # MongoDB for User System
   uporabniski-mongo:
-    build:
-      context: .
-      dockerfile: Uporabniski_sistem/Dockerfile.mongo
+    image: mongo:6.0
     container_name: uporabniski_sistem-mongodb
+    ports:
+      - "27019:27017"
     environment:
       MONGO_INITDB_DATABASE: uporabniski_sistem
     volumes:
@@ -56,69 +60,9 @@ services:
       retries: 3
       start_period: 10s
 
-  food-service:
-    build:
-      context: ./Soritev_narocanja_hrane
-    container_name: food-service
-    ports:
-      - "8000:8000"
-    environment:
-      MONGO_USERNAME: admin
-      MONGO_PASSWORD: secret
-      MONGO_HOST: food-mongo
-      MONGO_PORT: 27017
-      MONGO_DB: food_order_db
-    depends_on:
-      - food-mongo
-    networks:
-      - app-network
-    volumes:
-      - .:/app
-
-  music-service:
-    build:
-      context: ./Storitev_glasbenih_zelj
-    container_name: music-service
-    ports:
-      - "8001:8000"
-    environment:
-      MONGO_USERNAME: admin
-      MONGO_PASSWORD: secret
-      MONGO_HOST: music-mongo
-      MONGO_PORT: 27017
-      MONGO_DB: music_requests_db
-      FOOD_SERVICE_URL: http://food-service:8000
-    depends_on:
-      - music-mongo
-      - food-service
-    networks:
-      - app-network
-    volumes:
-      - ./music_service:/app
-
-  storitev-uporabniskega-sistema:
-    build:
-      context: ./Uporabniski_sistem
-      dockerfile: Dockerfile.storitev_uporabniskega_sistema
-    container_name: uporabniski_sistem-storitev-uporabniskega-sistema
-    ports:
-      - "8003:8003"
-    environment:
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      MONGODB_URL: mongodb://uporabniski-mongo:27017/uporabniski_sistem
-    depends_on:
-      uporabniski-mongo:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - app-network
-
+  # Redis for User System
   redis:
-    build:
-      context: .
-      dockerfile: Uporabniski_sistem/Dockerfile.redis
+    image: redis:7.0-alpine
     container_name: uporabniski_sistem-redis
     ports:
       - "6379:6379"
@@ -132,6 +76,82 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+
+  # Food Order Service (Soritev_narocanja_hrane)
+  food-service:
+    build:
+      context: ./Soritev_narocanja_hrane
+      dockerfile: DockerFile
+    container_name: food-service
+    ports:
+      - "8000:8000"
+    environment:
+      MONGO_USERNAME: admin
+      MONGO_PASSWORD: secret
+      MONGO_HOST: food-mongo
+      MONGO_PORT: 27017
+      MONGO_DB: food_order_db
+    depends_on:
+      food-mongo:
+        condition: service_healthy
+    networks:
+      - app-network
+    volumes:
+      - ./Soritev_narocanja_hrane:/app
+    restart: unless-stopped
+
+  # Music Service (Storitev_glasbenih_zelj)
+  music-service:
+    build:
+      context: ./Storitev_glasbenih_zelj
+      dockerfile: Dockerfile
+    container_name: music-service
+    ports:
+      - "8001:8000"
+    environment:
+      MONGO_USERNAME: admin
+      MONGO_PASSWORD: secret
+      MONGO_HOST: music-mongo
+      MONGO_PORT: 27017
+      MONGO_DB: music_requests_db
+      FOOD_SERVICE_URL: http://food-service:8000
+    depends_on:
+      music-mongo:
+        condition: service_healthy
+      food-service:
+        condition: service_started
+    networks:
+      - app-network
+    volumes:
+      - ./Storitev_glasbenih_zelj:/app
+    restart: unless-stopped
+
+  # User System Service (Uporabniski_sistem)
+  storitev-uporabniskega-sistema:
+    build:
+      context: ./Uporabniski_sistem
+      dockerfile: Dockerfile.storitev_uporabniskega_sistema
+    container_name: uporabniski_sistem-storitev-uporabniskega-sistema
+    ports:
+      - "8002:8000"
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      MONGODB_URL: mongodb://uporabniski-mongo:27017/uporabniski_sistem
+    depends_on:
+      uporabniski-mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
 
 volumes:
   food_mongo_data:
