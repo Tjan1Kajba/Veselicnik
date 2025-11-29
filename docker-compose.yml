@@ -14,10 +14,37 @@ services:
       - "5000:5000"
     networks:
       - appnet
+  
+  mongo:
+    image: mongo:latest
+    container_name: food-order-mongo
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: secret
+    volumes:
+      - mongo_data:/data/db
+
+  food-service:
+    build: .
+    container_name: food-service
+    ports:
+      - "8000:8000"
+    environment:
+      MONGO_USERNAME: admin
+      MONGO_PASSWORD: secret
+      MONGO_HOST: mongo
+      MONGO_PORT: 27017
+      MONGO_DB: food_order_db
+    depends_on:
+      - mongo
+    volumes:
+      - .:/app
 
 
-
-
+volumes:
+  mongo_data:
 
 networks:
   appnet:

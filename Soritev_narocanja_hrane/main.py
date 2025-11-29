@@ -3,8 +3,16 @@ from bson import ObjectId
 from models import Order, StatusUpdate, Payment, MenuItem
 from database import orders_collection, menu_collection
 from datetime import datetime
+import requests
 
 app = FastAPI(title="Food Ordering Microservice")
+
+def get_logged_in_user(session_token: str):
+    headers = {"Cookie": f"session_token={session_token}"}
+    r = requests.get("http://USER_SERVICE_HOST:8000/uporabnik/prijavljen", headers=headers)
+    if r.status_code == 200:
+        return r.json()
+    return None
 
 def order_serializer(order) -> dict:
     return {
@@ -23,6 +31,11 @@ def get_menu():
     for item in menu:
         item["_id"] = str(item["_id"])
     return menu
+
+@app.get("/orders/user/{user_id}")
+def get_user_orders(user_id: str):
+    orders = orders_collection.find({"user_id": user_id})
+    return [order_serializer(order) for order in orders]
 
 
 @app.post("/menu")
@@ -67,6 +80,11 @@ def get_all_orders():
     orders = orders_collection.find()
     return [order_serializer(order) for order in orders]
 
+@app.get("/orders/user/{user_id}/paid")
+def check_paid_orders(user_id: str):
+    count = orders_collection.count_documents({"user_id": user_id, "paid": True})
+    return {"has_paid_orders": count > 0}
+
 
 @app.post("/orders/{id}/pay")
 def pay_order(id: str, payment: Payment):
@@ -83,3 +101,17 @@ def pay_order(id: str, payment: Payment):
         {"$set": {"paid": True, "payment": payment.dict()}}
     )
     return {"message": "Order paid", "total_price": order["total_price"], "payment": payment.dict()}
+
+@app.delete("/orders/{id}")
+def delete_order(id: str):
+    result = orders_collection.delete_one({"_id": ObjectId(id)})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Order not found")
+    return {"message": "Order deleted"}
+
+@app.delete("/menu/{id}")
+def delete_menu_item(id: str):
+    result = menu_collection.delete_one({"_id": ObjectId(id)})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Menu item not found")
+    return {"message": "Menu item deleted"}
