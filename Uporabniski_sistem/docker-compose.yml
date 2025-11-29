@@ -1,0 +1,73 @@
+version: "3.8"
+
+services:
+  storitev-uporabniskega-sistema:
+    build:
+      context: .
+      dockerfile: Dockerfile.storitev_uporabniskega_sistema
+    container_name: uporabniski_sistem-storitev-uporabniskega-sistema
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - MONGODB_URL=mongodb://mongodb:27017/uporabniski_sistem
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  mongodb:
+    build:
+      context: .
+      dockerfile: Dockerfile.mongo
+    container_name: uporabniski_sistem-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=uporabniski_sistem
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  redis:
+    build:
+      context: .
+      dockerfile: Dockerfile.redis
+    container_name: uporabniski_sistem-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  mongodb_data:
+  redis_data:
+
+networks:
+  app-network:
+    driver: bridge
