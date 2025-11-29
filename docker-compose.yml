@@ -1,51 +1,144 @@
+
 services:
-  izgubljeni_predmeti_web:
-    build:
-      context: ./izgubljeni_predmeti/webserver
-      dockerfile: Dockerfile.development
-    restart: unless-stopped
-    env_file:
-      - ./izgubljeni_predmeti/.env
-    image: izgubljeni_predmeti_web:latest #image za caching
-    volumes:
-      - ./izgubljeni_predmeti/webserver:/usr/src/app
-      - /usr/src/app/node_modules
-    ports:
-      - "5000:5000"
-    networks:
-      - appnet
   
-  mongo:
+  #izgubljeni_predmeti_web:
+    #build:
+    #  context: ./izgubljeni_predmeti/webserver
+    #  dockerfile: Dockerfile.development
+   # restart: unless-stopped
+   # env_file:
+    #  - ./izgubljeni_predmeti/.env
+   # volumes:
+     # - ./izgubljeni_predmeti/webserver:/usr/src/app
+     # - /usr/src/app/node_modules
+    #ports:
+   #   - "5000:5000"
+  #  networks:
+ #     - app-network
+
+  food-mongo:
     image: mongo:latest
     container_name: food-order-mongo
-    ports:
-      - "27017:27017"
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: secret
     volumes:
-      - mongo_data:/data/db
+      - food_mongo_data:/data/db
+    networks:
+      - app-network
+
+  music-mongo:
+    image: mongo:latest
+    container_name: music-requests-mongo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: secret
+    volumes:
+      - music_mongo_data:/data/db
+    networks:
+      - app-network
+
+  uporabniski-mongo:
+    build:
+      context: .
+      dockerfile: Uporabniski_sistem/Dockerfile.mongo
+    container_name: uporabniski_sistem-mongodb
+    environment:
+      MONGO_INITDB_DATABASE: uporabniski_sistem
+    volumes:
+      - uporabniski_mongo_data:/data/db
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   food-service:
-    build: .
+    build:
+      context: ./Soritev_narocanja_hrane
     container_name: food-service
     ports:
       - "8000:8000"
     environment:
       MONGO_USERNAME: admin
       MONGO_PASSWORD: secret
-      MONGO_HOST: mongo
+      MONGO_HOST: food-mongo
       MONGO_PORT: 27017
       MONGO_DB: food_order_db
     depends_on:
-      - mongo
+      - food-mongo
+    networks:
+      - app-network
     volumes:
       - .:/app
 
+  music-service:
+    build:
+      context: ./Storitev_glasbenih_zelj
+    container_name: music-service
+    ports:
+      - "8001:8000"
+    environment:
+      MONGO_USERNAME: admin
+      MONGO_PASSWORD: secret
+      MONGO_HOST: music-mongo
+      MONGO_PORT: 27017
+      MONGO_DB: music_requests_db
+      FOOD_SERVICE_URL: http://food-service:8000
+    depends_on:
+      - music-mongo
+      - food-service
+    networks:
+      - app-network
+    volumes:
+      - ./music_service:/app
+
+  storitev-uporabniskega-sistema:
+    build:
+      context: ./Uporabniski_sistem
+      dockerfile: Dockerfile.storitev_uporabniskega_sistema
+    container_name: uporabniski_sistem-storitev-uporabniskega-sistema
+    ports:
+      - "8003:8003"
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      MONGODB_URL: mongodb://uporabniski-mongo:27017/uporabniski_sistem
+    depends_on:
+      uporabniski-mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  redis:
+    build:
+      context: .
+      dockerfile: Uporabniski_sistem/Dockerfile.redis
+    container_name: uporabniski_sistem-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
 volumes:
-  mongo_data:
+  food_mongo_data:
+  music_mongo_data:
+  uporabniski_mongo_data:
+  redis_data:
 
 networks:
-  appnet:
+  app-network:
     driver: bridge
