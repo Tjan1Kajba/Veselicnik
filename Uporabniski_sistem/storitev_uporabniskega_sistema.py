@@ -33,9 +33,9 @@ try:
         retry_on_timeout=True
     )
     redis_client.ping()
-    print("✅ Connected to Redis successfully")
+    print("Redis connection successfull")
 except Exception as e:
-    print(f"❌ Redis connection error: {e}")
+    print(f"Redis connection error: {e}")
     redis_client = None
 
 try:
@@ -47,9 +47,9 @@ try:
     mongo_client.admin.command('ping')
     db = mongo_client["uporabniski_sistem"]
     users_collection = db["uporabniki"]
-    print("✅ Connected to MongoDB successfully")
+    print("MongoDB connection successfull")
 except Exception as e:
-    print(f"❌ MongoDB connection error: {e}")
+    print(f"MongoDB connection error: {e}")
     mongo_client = None
     users_collection = None
 
@@ -268,7 +268,7 @@ async def prijava(podatki: PrijavaUporabnika, response: Response):
 @app.post("/uporabnik/odjava", tags=["Sistem registracije in prijave"])
 async def odjava(request: Request, response: Response, current_user: dict = Depends(zahtevaj_avtentikacijo)):
     """
-    Odjava trenutnega uporabnika. Zahteva prijavo.
+    Odjava trenutnega uporabnika. 
     """
     session_token = request.cookies.get("session_token")
 
@@ -282,7 +282,7 @@ async def odjava(request: Request, response: Response, current_user: dict = Depe
 @app.get("/uporabnik/prijavljen", tags=["Podatki uporabnika"], response_model=OdgovorUporabnika)
 async def prijavljen_uporabnik(current_user: dict = Depends(zahtevaj_avtentikacijo)):
     """
-    Pridobi podatke o prijavljenem uporabniku. Zahteva prijavo.
+    Pridobi podatke o prijavljenem uporabniku.
     """
     return OdgovorUporabnika(**current_user)
 
@@ -290,7 +290,7 @@ async def prijavljen_uporabnik(current_user: dict = Depends(zahtevaj_avtentikaci
 @app.get("/uporabniki", tags=["Podatki uporabnika"], response_model=List[OdgovorUporabnika])
 async def vsi_uporabniki(current_user: dict = Depends(zahtevaj_avtentikacijo)):
     """
-    Pridobi seznam vseh uporabnikov. Zahteva prijavo.
+    Pridobi seznam vseh uporabnikov. 
     """
     if not mongo_client:
         raise HTTPException(status_code=503, detail="Baza ni na voljo")
@@ -312,7 +312,6 @@ async def posodobi_uporabnika(
 ):
     """
     Posodobi podatke trenutnega uporabnika.
-    Zahteva prijavo.
     """
     if not mongo_client:
         raise HTTPException(status_code=503, detail="Baza ni na voljo")
@@ -396,7 +395,7 @@ async def spremeni_geslo(
         podatki: SpremeniGeslo,
         current_user: dict = Depends(zahtevaj_avtentikacijo)):
     """
-    Spremeni geslo trenutnega uporabnika. Zahteva prijavo in dvakratni vnos novega gesla.
+    Spremeni geslo trenutnega uporabnika.
     """
     if not mongo_client:
         raise HTTPException(status_code=503, detail="Baza ni na voljo")
@@ -441,7 +440,7 @@ async def izbrisi_racun(
     current_user: dict = Depends(zahtevaj_avtentikacijo)
 ):
     """
-    Izbriši račun trenutnega uporabnika. Zahteva prijavo.
+    Izbriši račun trenutnega uporabnika.
     """
     if not mongo_client:
         raise HTTPException(status_code=503, detail="Baza ni na voljo")
@@ -486,8 +485,7 @@ async def izbrisi_uporabnika_po_uporabniskem_imenu(
     current_user: dict = Depends(zahtevaj_avtentikacijo)
 ):
     """
-    Izbriši uporabnika po uporabniškem imenu. Zahteva prijavo.
-    Lahko izbriše katerikoli račun.
+    Izbriši uporabnika po uporabniškem imenu. 
     """
     if not mongo_client:
         raise HTTPException(status_code=503, detail="Baza ni na voljo")
@@ -556,7 +554,6 @@ async def izbrisi_uporabnika_po_uporabniskem_imenu(
 
 if __name__ == "__main__":
     import uvicorn
-    print(f"🚀 Starting server on {SERVICE_HOST}:{SERVICE_PORT}")
     uvicorn.run(
         app,
         host=SERVICE_HOST,
