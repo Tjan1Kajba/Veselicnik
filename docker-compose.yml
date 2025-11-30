@@ -115,6 +115,11 @@ services:
       MONGO_PORT: 27017
       MONGO_DB: music_requests_db
       FOOD_SERVICE_URL: http://food-service:8000
+    depends_on:
+      music-mongo:
+        condition: service_healthy
+      food-service:
+        condition: service_started
     networks:
       - app-network
     volumes:
