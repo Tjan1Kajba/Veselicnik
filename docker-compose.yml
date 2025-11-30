@@ -200,12 +200,50 @@ services:
     networks:
       - app-network
 
+  srecke_web:
+    build:
+      context: ./srecke/webserver
+      dockerfile: Dockerfile.development
+    restart: unless-stopped
+    image: srecke_web:latest #image za caching
+    volumes:
+      - ./srecke/webserver:/usr/src/app
+      - /usr/src/app/node_modules
+    environment:
+      DB_HOST: srecke_mongo
+      DB_USER: srecke_database_user
+      DB_PASSWORD: my_secure_password
+      DB_NAME: srecke_database
+      PORT: 9001
+    ports:
+      - "9001:9001"
+    networks:
+      - app-network
+    depends_on:
+      - srecke_mongo
+
+  srecke_mongo:
+    image: mongo:6
+    container_name: srecke-mongo
+    restart: always
+    ports:
+      - "27028:27017"
+    volumes:
+      - srecke_mongo_data:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: srecke_database_user
+      MONGO_INITDB_ROOT_PASSWORD: my_secure_password
+      MONGO_INITDB_DATABASE: srecke_database
+    networks:
+      - app-network
+
 volumes:
   food_mongo_data:
   music_mongo_data:
   uporabniski_mongo_data:
   redis_data:
   izgubljeni_predmeti_mongo_data:
+  srecke_mongo_data:
 
 networks:
   app-network:

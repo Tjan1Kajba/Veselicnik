@@ -1,0 +1,19 @@
+FROM node:18-alpine
+
+WORKDIR /usr/src/app
+
+# Copy package files and install dependencies in one layer
+COPY package*.json ./
+
+# for production
+RUN npm ci --omit=dev
+
+# for development
+# RUN npm install
+
+
+# Copy application source
+COPY . .
+
+EXPOSE 9001
+CMD ["node", "app.js"]

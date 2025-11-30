@@ -9,9 +9,6 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
-// -----------------------------
-// MongoDB Connection (using ENV)
-// -----------------------------
 const { DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, PORT } = process.env;
 
 const MONGO_URI = `mongodb://${DB_USER}:${DB_PASSWORD}@izgubljeni_predmeti_mongo:27017/${DB_NAME}?authSource=admin`;
