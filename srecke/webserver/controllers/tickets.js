@@ -1,4 +1,5 @@
 const Ticket = require("../models/Ticket");
+const axios = require("axios");
 
 exports.createTicket = async (req, res) => {
   try {
@@ -6,6 +7,39 @@ exports.createTicket = async (req, res) => {
     res.status(201).json(ticket);
   } catch (err) {
     res.status(400).json({ error: err.message });
+  }
+};
+
+exports.createTicketAndMusicRequest = async (req, res) => {
+  const { userId, songName, artist } = req.body;
+
+  if (!userId || !songName || !artist) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+
+  try {
+    // Create a new ticket
+    const ticket = await Ticket.create({ userId });
+
+    // Send POST request to music service
+    const musicRequest = {
+      user_id: userId,
+      song_name: songName,
+      artist,
+      votes: 0,
+      timestamp: new Date().toISOString(),
+    };
+
+    const response = await axios.post("http://music-service:8000/music/requests", musicRequest);
+
+    // Return combined response
+    res.status(201).json({
+      ticket,
+      musicRequestResponse: response.data,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 

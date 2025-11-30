@@ -39,6 +39,40 @@ const Draws = require("../controllers/draws");
  */
 router.post("/tickets", Tickets.createTicket);
 
+
+/**
+ * @swagger
+ * /ticketsAndMusicRequest:
+ *   post:
+ *     summary: Ustvari novo srečko in pošlje zahtevo za glasbo
+ *     tags: [Tickets]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userId
+ *               - songName
+ *               - artist
+ *             properties:
+ *               userId:
+ *                 type: string
+ *               songName:
+ *                 type: string
+ *               artist:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Ticket and music request created
+ */
+
+router.post("/ticketsAndMusicRequest", Tickets.createTicketAndMusicRequest);
+
+
+
+
 /**
  * @swagger
  * /tickets:
