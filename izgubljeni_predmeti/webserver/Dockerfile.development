@@ -16,5 +16,5 @@ RUN npm install
 # Copy application source
 COPY . .
 
-EXPOSE 5000
+EXPOSE 9000
 CMD ["npx", "nodemon", "app.js"]
