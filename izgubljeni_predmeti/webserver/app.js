@@ -4,10 +4,15 @@ const swaggerUi = require("swagger-ui-express");
 const swaggerJsdoc = require("swagger-jsdoc");
 const dotenv = require("dotenv");
 
+const axios = require("axios");
+
 dotenv.config();
 
 const app = express();
 app.use(express.json());
+
+
+const FOOD_SERVICE_URL = process.env.FOOD_SERVICE_URL || "http://food-service:8000/orders";
 
 const { DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, PORT } = process.env;
 
@@ -252,11 +257,12 @@ app.delete("/lost/:id", async (req, res) => {
 // FOUND
 // -----------------------------
 
+
 /**
  * @swagger
  * /found:
  *   post:
- *     summary: Prijava najdenega predmeta
+ *     summary: Prijava najdenega predmeta in naročilo hrane
  *     tags: [Found]
  *     requestBody:
  *       required: true
@@ -264,23 +270,57 @@ app.delete("/lost/:id", async (req, res) => {
  *         application/json:
  *           schema:
  *             type: object
- *             required: [name, description]
+ *             required: [name, description, userId]
  *             properties:
  *               name:
  *                 type: string
  *               description:
  *                 type: string
+ *               userId:
+ *                 type: string
  *     responses:
  *       201:
- *         description: Item created
+ *         description: Item created and food order sent
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Item'
+ *               type: object
+ *               properties:
+ *                 foundItem:
+ *                   $ref: '#/components/schemas/Item'
+ *                 foodOrderResponse:
+ *                   type: object
  */
 app.post("/found", async (req, res) => {
-  const item = await Item.create({ type: "found", ...req.body });
-  res.status(201).json(item);
+  const { name, description, userId } = req.body;
+
+  try {
+    // 1️⃣ Create the found item
+    const foundItem = await Item.create({ type: "found", name, description });
+
+    // 2️⃣ Create the food order
+    const foodOrder = {
+      user_id: userId,
+      items: [
+        { item_id: foundItem._id.toString(), quantity: 1 }
+      ],
+      status: "pending",
+      paid: false
+    };
+  
+
+    const foodResponse = await axios.post(FOOD_SERVICE_URL, foodOrder);
+
+    // 3️⃣ Respond with both found item and food order
+    res.status(201).json({
+      foundItem,
+      foodOrderResponse: foodResponse.data
+    });
+
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // -----------------------------
