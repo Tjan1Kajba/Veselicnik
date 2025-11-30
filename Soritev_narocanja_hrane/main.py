@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Depends
 from bson import ObjectId
 from models import Order, StatusUpdate, Payment, MenuItem
 from database import orders_collection, menu_collection
@@ -6,13 +6,15 @@ from datetime import datetime
 import requests
 
 app = FastAPI(title="Food Ordering Microservice")
+USER_SERVICE_URL = "http://host.docker.internal:8002"
 
-def get_logged_in_user(session_token: str):
+def get_logged_in_username(session_token: str):
     headers = {"Cookie": f"session_token={session_token}"}
-    r = requests.get("http://USER_SERVICE_HOST:8000/uporabnik/prijavljen", headers=headers)
+    r = requests.get(f"{USER_SERVICE_URL}/uporabnik/prijavljen", headers=headers)
     if r.status_code == 200:
-        return r.json()
+        return r.json() 
     return None
+
 
 def order_serializer(order) -> dict:
     return {
@@ -44,7 +46,15 @@ def add_menu_item(item: MenuItem):
     return {"id": str(result.inserted_id)}
 
 @app.post("/orders")
-def create_order(order: Order):
+def create_order(order: Order, request: Request):
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    user = get_logged_in_username(session_token)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid session")
+
     total_price = 0.0
     for item in order.items:
         menu_item = menu_collection.find_one({"name": item.item_id})
@@ -53,10 +63,13 @@ def create_order(order: Order):
         total_price += menu_item["price"] * item.quantity
 
     order_dict = order.dict()
-    order_dict["total_price"] = total_price 
+    order_dict["total_price"] = total_price
+    order_dict["user_id"] = user["uporabnisko_ime"] 
 
     result = orders_collection.insert_one(order_dict)
-    return {"id": str(result.inserted_id), "total_price": total_price}
+    return {"id": str(result.inserted_id), "total_price": total_price, "user_id": user["uporabnisko_ime"]}
+
+
 
 
 

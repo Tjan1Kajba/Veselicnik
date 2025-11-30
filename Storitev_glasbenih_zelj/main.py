@@ -23,7 +23,7 @@ def request_serializer(request) -> dict:
     }
 
 
-FOOD_SERVICE_URL = "http://127.0.0.1:8000" 
+FOOD_SERVICE_URL = "http://127.0.0.1:8001" 
 
 @app.post("/music/requests")
 def create_request(request: MusicRequest):
