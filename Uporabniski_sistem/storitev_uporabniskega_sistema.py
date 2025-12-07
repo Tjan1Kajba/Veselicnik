@@ -1,28 +1,37 @@
 from fastapi import FastAPI, Request, Depends, HTTPException, status, Cookie, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pymongo import MongoClient
 import redis
 from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr, validator
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 from bson import ObjectId
 import secrets
 import json
 import os
+import jwt
+from jwt import PyJWTError
 
+# JWT konfiguracija
+JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'your-secret-key-change-in-production')
+JWT_ALGORITHM = os.getenv('JWT_ALGORITHM', 'HS256')
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv('JWT_ACCESS_TOKEN_EXPIRE_MINUTES', 30))
+JWT_REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv('JWT_REFRESH_TOKEN_EXPIRE_DAYS', 7))
+
+security = HTTPBearer(auto_error=False)
 
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
-MONGODB_URL = os.getenv(
-    'MONGODB_URL', 'mongodb://localhost:27017/uporabniski_sistem')
+MONGODB_URL = os.getenv('MONGODB_URL', 'mongodb://localhost:27017/uporabniski_sistem')
 SERVICE_HOST = os.getenv('SERVICE_HOST', '0.0.0.0')
 SERVICE_PORT = int(os.getenv('SERVICE_PORT', 8000))
-
 
 redis_client = None
 mongo_client = None
 users_collection = None
+
 
 try:
     redis_client = redis.Redis(
@@ -33,7 +42,7 @@ try:
         retry_on_timeout=True
     )
     redis_client.ping()
-    print("Redis connection successfull")
+    print("Redis connection successful")
 except Exception as e:
     print(f"Redis connection error: {e}")
     redis_client = None
@@ -47,7 +56,7 @@ try:
     mongo_client.admin.command('ping')
     db = mongo_client["uporabniski_sistem"]
     users_collection = db["uporabniki"]
-    print("MongoDB connection successfull")
+    print("MongoDB connection successful")
 except Exception as e:
     print(f"MongoDB connection error: {e}")
     mongo_client = None
@@ -55,7 +64,7 @@ except Exception as e:
 
 app = FastAPI(
     title="Uporabniški Sistem",
-    description="Storitev za upravljanje uporabnikov in sej",
+    description="Storitev za upravljanje uporabnikov in sej z JWT avtentikacijo",
     version="1.0.0"
 )
 
@@ -94,6 +103,14 @@ class PrijavaUporabnika(BaseModel):
     geslo: str
 
 
+class JWTResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int
+    user: Dict[str, Any]
+
+
 class PosodobiUporabnika(BaseModel):
     uporabnisko_ime: Optional[str] = None
     email: Optional[EmailStr] = None
@@ -120,10 +137,149 @@ class SpremeniGeslo(BaseModel):
         return v
 
 
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 
-# Upravljanje sej
+def ustvari_jwt_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
+    """
+    Ustvari JWT token z zahtevanimi atributi.
+    """
+    to_encode = data.copy()
+
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
+
+    to_encode.update({
+        "exp": expire,
+        "iat": datetime.utcnow(),
+        "sub": data.get("sub", ""),  # Uporabniški ID
+        "name": data.get("name", ""),  # Ime uporabnika
+    })
+
+    encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY,
+                             algorithm=JWT_ALGORITHM)
+    return encoded_jwt
+
+
+def ustvari_access_token(user_data: Dict[str, Any]) -> str:
+    """
+    Ustvari access token za uporabnika.
+    """
+    token_data = {
+        "sub": str(user_data["_id"]),
+        "name": f"{user_data.get('ime', '')} {user_data.get('priimek', '')}".strip() or user_data["uporabnisko_ime"],
+        "username": user_data["uporabnisko_ime"],
+        "email": user_data["email"],
+        "user_type": user_data.get("tip_uporabnika", "normal")
+    }
+
+    access_token_expires = timedelta(minutes=JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
+    return ustvari_jwt_token(token_data, access_token_expires)
+
+
+def ustvari_refresh_token(user_id: str) -> str:
+    """
+    Ustvari refresh token za uporabnika.
+    """
+    token_data = {
+        "sub": user_id,
+        "type": "refresh"
+    }
+
+    refresh_token_expires = timedelta(days=JWT_REFRESH_TOKEN_EXPIRE_DAYS)
+    return ustvari_jwt_token(token_data, refresh_token_expires)
+
+
+def preveri_jwt_token(token: str) -> Dict[str, Any]:
+    """
+    Preveri veljavnost JWT tokena in vrne podatke.
+    """
+    try:
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token je potekel",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except PyJWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Neveljaven token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+def pridobi_token_iz_zaglavja(credentials: HTTPAuthorizationCredentials) -> Optional[str]:
+    """
+    Pridobi JWT token iz Authorization zaglavja.
+    """
+    if credentials:
+        if credentials.scheme.lower() == "bearer":
+            return credentials.credentials
+    return None
+
+
+async def get_current_user(
+    token: str = Depends(security),
+    session_token: str = Cookie(None)
+) -> Dict[str, Any]:
+    """
+    Pridobi trenutnega uporabnika iz JWT tokena ali seje.
+    """
+    if token:
+        jwt_token = pridobi_token_iz_zaglavja(token)
+        if jwt_token:
+            try:
+                payload = preveri_jwt_token(jwt_token)
+                user_id = payload.get("sub")
+                if user_id:
+                    if not mongo_client:
+                        raise HTTPException(
+                            status_code=503, detail="Baza ni na voljo")
+
+                    user = users_collection.find_one(
+                        {"_id": ObjectId(user_id)})
+                    if user:
+                        user["id"] = str(user["_id"])
+                        return user
+
+            except HTTPException:
+                pass  # Nadaljujemo s preverjanjem seje
+
+    # Če JWT ni veljaven ali ni podan, preverimo sejo
+    if session_token and mongo_client:
+        session = pridobi_sejo(session_token)
+        if session:
+            user = users_collection.find_one(
+                {"_id": ObjectId(session["user_id"])})
+            if user:
+                user["id"] = str(user["_id"])
+                return user
+
+    return None
+
+
+def zahtevaj_avtentikacijo(current_user: Dict[str, Any] = Depends(get_current_user)):
+    """
+    Zahteva avtentikacijo uporabnika.
+    """
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Za dostop se morate prijaviti",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return current_user
+
+
 def ustvari_sejo(user_id: str, username: str) -> str:
     if not redis_client:
         raise HTTPException(status_code=503, detail="Storitev sej ni na voljo")
@@ -158,30 +314,6 @@ def prekini_sejo(session_token: str):
         redis_client.delete(f"session:{session_token}")
 
 
-def trenutni_uporabnik(session_token: str = Cookie(None)) -> Optional[dict]:
-    if not session_token or not mongo_client:
-        return None
-
-    session = pridobi_sejo(session_token)
-    if not session:
-        return None
-
-    user = users_collection.find_one({"_id": ObjectId(session["user_id"])})
-    if user:
-        user["id"] = str(user["_id"])
-        return user
-    return None
-
-
-def zahtevaj_avtentikacijo(current_user: dict = Depends(trenutni_uporabnik)):
-    if not current_user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Za dostop se morate prijaviti"
-        )
-    return current_user
-
-
 def zakodiraj_geslo(geslo: str) -> str:
     return pwd_context.hash(geslo)
 
@@ -190,7 +322,6 @@ def preveri_geslo(geslo: str, zakodirano_geslo: str) -> bool:
     return pwd_context.verify(geslo, zakodirano_geslo)
 
 
-# Poti
 @app.post("/uporabnik/registracija", tags=["Sistem registracije in prijave"], response_model=OdgovorUporabnika)
 async def registracija(podatki: UstvariUporabnika):
     """
@@ -223,10 +354,11 @@ async def registracija(podatki: UstvariUporabnika):
     return OdgovorUporabnika(**uporabnik)
 
 
-@app.post("/uporabnik/prijava", tags=["Sistem registracije in prijave"])
+@app.post("/uporabnik/prijava", tags=["Sistem registracije in prijave"], response_model=JWTResponse)
 async def prijava(podatki: PrijavaUporabnika, response: Response):
     """
     Prijava uporabnika z uporabniškim imenom ali emailom in geslom.
+    Vrne JWT access in refresh token.
     """
     if not mongo_client:
         raise HTTPException(status_code=503, detail="Storitev ni na voljo")
@@ -240,6 +372,17 @@ async def prijava(podatki: PrijavaUporabnika, response: Response):
         raise HTTPException(
             status_code=401, detail="Napačno uporabniško ime/email ali geslo")
 
+    access_token = ustvari_access_token(user)
+    refresh_token = ustvari_refresh_token(str(user["_id"]))
+
+    # Shrani refresh token v Redis
+    if redis_client:
+        redis_client.setex(
+            f"refresh_token:{str(user['_id'])}",
+            timedelta(days=JWT_REFRESH_TOKEN_EXPIRE_DAYS),
+            refresh_token
+        )
+
     session_token = ustvari_sejo(str(user["_id"]), user["uporabnisko_ime"])
 
     response.set_cookie(
@@ -251,9 +394,11 @@ async def prijava(podatki: PrijavaUporabnika, response: Response):
         samesite="lax"
     )
 
-    return {
-        "sporocilo": "Prijava uspešna",
-        "uporabnik": {
+    return JWTResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_in=JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        user={
             "id": str(user["_id"]),
             "uporabnisko_ime": user["uporabnisko_ime"],
             "email": user["email"],
@@ -262,18 +407,86 @@ async def prijava(podatki: PrijavaUporabnika, response: Response):
             "spol": user.get("spol"),
             "tip_uporabnika": user.get("tip_uporabnika", "normal")
         }
-    }
+    )
+
+
+@app.post("/auth/refresh", tags=["Sistem registracije in prijave"], response_model=JWTResponse)
+async def osvezi_token(podatki: RefreshTokenRequest):
+    """
+    Osveži access token z uporabo refresh tokena.
+    """
+    try:
+        payload = preveri_jwt_token(podatki.refresh_token)
+
+        if payload.get("type") != "refresh":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Neveljaven tip tokena"
+            )
+
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Neveljaven token"
+            )
+
+        if redis_client:
+            stored_token = redis_client.get(f"refresh_token:{user_id}")
+            if stored_token != podatki.refresh_token:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Token je preklican"
+                )
+
+        if not mongo_client:
+            raise HTTPException(status_code=503, detail="Baza ni na voljo")
+
+        user = users_collection.find_one({"_id": ObjectId(user_id)})
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Uporabnik ne obstaja"
+            )
+
+        access_token = ustvari_access_token(user)
+
+        return JWTResponse(
+            access_token=access_token,
+            refresh_token=podatki.refresh_token,  
+            expires_in=JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            user={
+                "id": str(user["_id"]),
+                "uporabnisko_ime": user["uporabnisko_ime"],
+                "email": user["email"],
+                "ime": user.get("ime"),
+                "priimek": user.get("priimek"),
+                "spol": user.get("spol"),
+                "tip_uporabnika": user.get("tip_uporabnika", "normal")
+            }
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Napaka pri osveževanju tokena: {str(e)}"
+        )
 
 
 @app.post("/uporabnik/odjava", tags=["Sistem registracije in prijave"])
 async def odjava(request: Request, response: Response, current_user: dict = Depends(zahtevaj_avtentikacijo)):
     """
-    Odjava trenutnega uporabnika. 
+    Odjava trenutnega uporabnika. Prekliče JWT refresh token in sejo.
     """
     session_token = request.cookies.get("session_token")
 
     if session_token:
         prekini_sejo(session_token)
+
+    if redis_client and current_user:
+        redis_client.delete(f"refresh_token:{current_user['id']}")
 
     response.delete_cookie("session_token")
     return {"sporocilo": "Odjava uspešna"}
@@ -285,6 +498,38 @@ async def prijavljen_uporabnik(current_user: dict = Depends(zahtevaj_avtentikaci
     Pridobi podatke o prijavljenem uporabniku.
     """
     return OdgovorUporabnika(**current_user)
+
+
+@app.middleware("http")
+async def preveri_jwt_middleware(request: Request, call_next):
+    """
+    Middleware za avtomatično preverjanje JWT tokenov v zahtevkih.
+    """
+    # Če je zahtevek za javno dostopno pot, preskoči preverjanje
+    public_paths = ["/docs", "/redoc", "/openapi.json", "/uporabnik/prijava",
+                    "/uporabnik/registracija", "/auth/refresh"]
+
+    if request.url.path in public_paths or request.url.path.startswith("/static"):
+        return await call_next(request)
+
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        try:
+            token = auth_header.replace("Bearer ", "")
+            payload = preveri_jwt_token(token)
+            request.state.user_id = payload.get("sub")
+            request.state.user_data = payload
+        except HTTPException as e:
+            return Response(
+                content=json.dumps({"detail": e.detail}),
+                status_code=e.status_code,
+                media_type="application/json"
+            )
+        except Exception:
+            pass 
+
+    return await call_next(request)
+
 
 
 @app.get("/uporabniki", tags=["Podatki uporabnika"], response_model=List[OdgovorUporabnika])
@@ -460,6 +705,9 @@ async def izbrisi_racun(
         if session_token:
             prekini_sejo(session_token)
 
+        if redis_client:
+            redis_client.delete(f"refresh_token:{user_id}")
+
         response.delete_cookie("session_token")
 
         return {
@@ -522,6 +770,8 @@ async def izbrisi_uporabnika_po_uporabniskem_imenu(
                     if session_info.get("user_id") == user_to_delete_id:
                         redis_client.delete(key)
 
+            redis_client.delete(f"refresh_token:{user_to_delete_id}")
+
         if user_to_delete_id == current_user_id:
             response = {
                 "sporocilo": "Vaš račun je bil uspešno izbrisan",
@@ -551,6 +801,43 @@ async def izbrisi_uporabnika_po_uporabniskem_imenu(
             status_code=500,
             detail=f"Napaka pri brisanju uporabnika: {str(e)}"
         )
+
+
+@app.post("/auth/verify", tags=["JWT Avtentikacija"])
+async def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """
+    Preveri veljavnost JWT tokena.
+    Uporabljajo druge storitve za verifikacijo tokenov.
+    """
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Manjka avtorizacijski token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    token = pridobi_token_iz_zaglavja(credentials)
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Neveljaven format tokena",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    try:
+        payload = preveri_jwt_token(token)
+        return {
+            "valid": True,
+            "payload": payload,
+            "user_id": payload.get("sub"),
+            "username": payload.get("username")
+        }
+    except HTTPException as e:
+        return {
+            "valid": False,
+            "error": e.detail
+        }
+
 
 if __name__ == "__main__":
     import uvicorn

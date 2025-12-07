@@ -148,6 +148,8 @@ services:
         condition: service_healthy
     networks:
       - app-network
+    volumes:
+    - uporabniski_sistem_data:/app/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
       interval: 30s
@@ -231,6 +233,7 @@ services:
       - app-network
 
 volumes:
+  uporabniski_sistem_data:
   food_mongo_data:
   music_mongo_data:
   uporabniski_mongo_data:
