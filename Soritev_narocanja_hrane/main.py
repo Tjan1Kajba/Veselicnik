@@ -8,11 +8,11 @@ import requests
 app = FastAPI(title="Food Ordering Microservice")
 USER_SERVICE_URL = "http://host.docker.internal:8002"
 
-def get_logged_in_username(session_token: str):
-    headers = {"Cookie": f"session_token={session_token}"}
-    r = requests.get(f"{USER_SERVICE_URL}/uporabnik/prijavljen", headers=headers)
+def get_logged_in_user(session_token: str):
+    cookies = {"session_token": session_token}
+    r = requests.get(f"{USER_SERVICE_URL}/uporabnik/prijavljen", cookies=cookies)
     if r.status_code == 200:
-        return r.json() 
+        return r.json()
     return None
 
 
@@ -51,9 +51,18 @@ def create_order(order: Order, request: Request):
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    user = get_logged_in_username(session_token)
-    if not user:
+    auth_response = get_logged_in_user(session_token)
+    if not auth_response:
         raise HTTPException(status_code=401, detail="Invalid session")
+
+    user = auth_response.get("user")
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid user data")
+
+    username = user["uporabnisko_ime"]
+    id_veselica = user.get("id_veselica")
+    if not id_veselica:
+        raise HTTPException(status_code=400, detail="User is not registered to any veselica")
 
     total_price = 0.0
     for item in order.items:
@@ -64,12 +73,16 @@ def create_order(order: Order, request: Request):
 
     order_dict = order.dict()
     order_dict["total_price"] = total_price
-    order_dict["user_id"] = user["uporabnisko_ime"] 
+    order_dict["user_id"] = username
+    order_dict["id_veselica"] = id_veselica
 
     result = orders_collection.insert_one(order_dict)
-    return {"id": str(result.inserted_id), "total_price": total_price, "user_id": user["uporabnisko_ime"]}
-
-
+    return {
+        "id": str(result.inserted_id),
+        "total_price": total_price,
+        "user_id": username,
+        "id_veselica": id_veselica
+    }
 
 
 
