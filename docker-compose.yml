@@ -117,7 +117,7 @@ services:
 
   user_service:
     build:
-      context: ./Uporabniski_sistem
+      context: ./Storitev_uporabniskega_sistema
       dockerfile: Dockerfile.storitev_uporabniskega_sistema
     container_name: user_service
     ports:
