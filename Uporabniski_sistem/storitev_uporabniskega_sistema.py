@@ -7,12 +7,12 @@ from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 from bson import ObjectId
+from jwt.exceptions import ExpiredSignatureError, InvalidTokenError, PyJWTError
 import secrets
 import json
 import os
 import jwt
-from jwt.exceptions import ExpiredSignatureError, InvalidTokenError, PyJWTError
-from fastapi.openapi.utils import get_openapi
+
 
 
 JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'your-secret-key-change-in-production')
@@ -62,7 +62,6 @@ def init_database():
 
 
 db_initialized = init_database()
-
 
 app = FastAPI(
     title="Uporabniški Sistem",
