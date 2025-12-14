@@ -18,7 +18,8 @@ def request_serializer(request) -> dict:
         "song_name": request["song_name"],
         "artist": request.get("artist"),
         "votes": request.get("votes", 0),
-        "timestamp": request.get("timestamp")
+        "timestamp": request.get("timestamp"),
+        "id_veselica": request.get("id_veselica")
     }
 
 
@@ -26,11 +27,19 @@ FOOD_SERVICE_URL = "http://host.docker.internal:8001"
 USER_SERVICE_URL = "http://host.docker.internal:8002"
 
 def get_logged_in_user(session_token: str):
-    headers = {"Cookie": f"session_token={session_token}"}
-    r = requests.get(f"{USER_SERVICE_URL}/uporabnik/prijavljen", headers=headers)
+    cookies = {"session_token": session_token}
+    r = requests.get(f"{USER_SERVICE_URL}/uporabnik/prijavljen", cookies=cookies)
     if r.status_code == 200:
-        return r.json()  
+        return r.json()  # vrne JSON z 'user'
     return None
+
+@app.get("/music/requests/veselica/{id_veselica}")
+def get_requests_by_veselica(id_veselica: str):
+    requests_list = list(requests_collection.find({"id_veselica": id_veselica}))
+    if not requests_list:
+        raise HTTPException(status_code=404, detail="No music requests found for this veselica")
+
+    return [request_serializer(r) for r in requests_list]
 
 @app.post("/music/requests")
 def create_request(music_request: MusicRequest, request: Request):
@@ -38,12 +47,18 @@ def create_request(music_request: MusicRequest, request: Request):
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    user = get_logged_in_user(session_token)
-    if not user:
+    auth_response = get_logged_in_user(session_token)
+    if not auth_response:
         raise HTTPException(status_code=401, detail="Invalid session")
 
-    user_id = user["uporabnisko_ime"]  
+    user = auth_response.get("user")  # ⬅️ popravljeno: pridobi user iz odgovora
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid user data")
 
+    user_id = user["uporabnisko_ime"]
+    id_veselica = user.get("id_veselica")  # pridobi veselico, če obstaja
+
+    # 3️⃣ Preveri, če je uporabnik kupil hrano
     r = requests.get(f"{FOOD_SERVICE_URL}/orders/user/{user_id}/paid")
     if r.status_code != 200 or not r.json().get("has_paid_orders", False):
         raise HTTPException(status_code=403, detail="You must buy food before making a music request")
@@ -51,10 +66,12 @@ def create_request(music_request: MusicRequest, request: Request):
     request_doc = music_request.dict()
     request_doc["votes"] = 0
     request_doc["timestamp"] = datetime.utcnow()
-    request_doc["user_id"] = user_id  
+    request_doc["user_id"] = user_id
+    request_doc["id_veselica"] = id_veselica
 
     result = requests_collection.insert_one(request_doc)
-    return {"id": str(result.inserted_id)}
+    return {"id": str(result.inserted_id), "user_id": user_id, "id_veselica": id_veselica}
+
 
 
 @app.post("/music/requests/{id}/vote")
