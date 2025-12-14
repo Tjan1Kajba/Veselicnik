@@ -213,6 +213,29 @@ services:
     networks:
       - app-network
 
+
+
+  frontend_user:
+    build:
+      context: ./Frontend/frontend_user
+      dockerfile: Dockerfile
+    container_name: frontend_user
+    ports:
+      - "3000:3000"
+    working_dir: /app
+    environment:
+      - NODE_ENV=production
+    networks:
+      - app-network
+    restart: unless-stopped
+
+networks:
+  app-network:
+    driver: bridge
+
+
+
+
 volumes:
   uporabniski_sistem_data:
   food_mongo_data:
@@ -221,6 +244,4 @@ volumes:
   izgubljeni_predmeti_mongo_data:
   srecke_mongo_data:
 
-networks:
-  app-network:
-    driver: bridge
+
