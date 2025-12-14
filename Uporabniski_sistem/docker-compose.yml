@@ -1,21 +1,15 @@
-version: "3.8"
-
 services:
-  storitev-uporabniskega-sistema:
+  user_service:
     build:
       context: .
       dockerfile: Dockerfile.storitev_uporabniskega_sistema
-    container_name: uporabniski_sistem-storitev-uporabniskega-sistema
+    container_name: user_service
     ports:
       - "8000:8000"
     environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - MONGODB_URL=mongodb://mongodb:27017/uporabniski_sistem
+      - MONGODB_URL=mongodb://user-mongo:27017/uporabniski_sistem
     depends_on:
-      mongodb:
-        condition: service_healthy
-      redis:
+      user-mongo:
         condition: service_healthy
     networks:
       - app-network
@@ -26,11 +20,11 @@ services:
       retries: 3
       start_period: 40s
 
-  mongodb:
+  user-mongo:
     build:
       context: .
       dockerfile: Dockerfile.mongo
-    container_name: uporabniski_sistem-mongodb
+    container_name: user_system-mongodb
     ports:
       - "27017:27017"
     environment:
@@ -46,28 +40,12 @@ services:
       retries: 3
       start_period: 10s
 
-  redis:
-    build:
-      context: .
-      dockerfile: Dockerfile.redis
-    container_name: uporabniski_sistem-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - app-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-
 volumes:
-  mongodb_data:
-  redis_data:
+  uporabniski_mongo_data:
+  uporabniski_sistem_data:
 
 networks:
   app-network:
     driver: bridge
+
+    

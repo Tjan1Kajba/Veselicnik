@@ -37,9 +37,9 @@ services:
       retries: 5
       start_period: 10s
 
-  uporabniski-mongo:
+  user-mongo:
     image: mongo:6.0
-    container_name: uporabniski_sistem-mongodb
+    container_name: user_system-mongodb
     ports:
       - "27019:27017"
     environment:
@@ -55,21 +55,6 @@ services:
       retries: 3
       start_period: 10s
 
-  redis:
-    image: redis:7.0-alpine
-    container_name: uporabniski_sistem-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - app-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
 
   food-service:
     build:
@@ -130,21 +115,17 @@ services:
       retries: 3
       start_period: 40s
 
-  storitev-uporabniskega-sistema:
+  user_service:
     build:
       context: ./Uporabniski_sistem
       dockerfile: Dockerfile.storitev_uporabniskega_sistema
-    container_name: uporabniski_sistem-storitev-uporabniskega-sistema
+    container_name: user_service
     ports:
       - "0.0.0.0:8002:8000"
     environment:
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      MONGODB_URL: mongodb://uporabniski-mongo:27017/uporabniski_sistem
+      MONGODB_URL: mongodb://user-mongo:27017/uporabniski_sistem
     depends_on:
-      uporabniski-mongo:
-        condition: service_healthy
-      redis:
+      user-mongo:
         condition: service_healthy
     networks:
       - app-network
@@ -237,7 +218,6 @@ volumes:
   food_mongo_data:
   music_mongo_data:
   uporabniski_mongo_data:
-  redis_data:
   izgubljeni_predmeti_mongo_data:
   srecke_mongo_data:
 
