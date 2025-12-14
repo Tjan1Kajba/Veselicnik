@@ -53,39 +53,61 @@ export default function LoginPage() {
           <div className="big">VESELIČNIK</div>
           <div className="desc">
             Vaša vse‑v‑enem digitalna rešitev za brezhibno veselico. Planiranje
-            dogodka je izziv. Veseličnik pretvori ta izziv v enostavno, gladko in
-            zabavno izkušnjo za organizatorje in goste. Ne skrbite več za kaos –
-            vse, kar potrebujete, je v eni pametni aplikaciji.
+            dogodka je izziv. Veseličnik pretvori ta izziv v enostavno, gladko
+            in zabavno izkušnjo za organizatorje in goste. Ne skrbite več za
+            kaos – vse, kar potrebujete, je v eni pametni aplikaciji.
           </div>
           <ul className="feature-list">
             <li>
-              <span className="feature-dot" style={{background:'#ed8458'}}></span>
-              <span role="img" aria-label="food">🍔</span>
-              <span style={{marginLeft:8}}>Naročanje Hrane & Pijač</span>
+              <span
+                className="feature-dot"
+                style={{ background: "#ed8458" }}
+              ></span>
+              <span role="img" aria-label="food">
+                🍔
+              </span>
+              <span style={{ marginLeft: 8 }}>Naročanje hrane & pijač</span>
             </li>
             <li>
-              <span className="feature-dot" style={{background:'#ed8458'}}></span>
-              <span role="img" aria-label="music">🎵</span>
-              <span style={{marginLeft:8}}>Glasbene želje</span>
+              <span
+                className="feature-dot"
+                style={{ background: "#ed8458" }}
+              ></span>
+              <span role="img" aria-label="music">
+                🎵
+              </span>
+              <span style={{ marginLeft: 8 }}>Glasbene želje</span>
             </li>
             <li>
-              <span className="feature-dot" style={{background:'#ed8458'}}></span>
-              <span role="img" aria-label="lottery">🎟️</span>
-              <span style={{marginLeft:8}}>Srečkolov</span>
+              <span
+                className="feature-dot"
+                style={{ background: "#ed8458" }}
+              ></span>
+              <span role="img" aria-label="lottery">
+                🎟️
+              </span>
+              <span style={{ marginLeft: 8 }}>Srečkolov</span>
             </li>
             <li>
-              <span className="feature-dot" style={{background:'#ed8458'}}></span>
-              <span role="img" aria-label="lost-found">🧳</span>
-              <span style={{marginLeft:8}}>Izgubljeno & Najdeno</span>
+              <span
+                className="feature-dot"
+                style={{ background: "#ed8458" }}
+              ></span>
+              <span role="img" aria-label="lost-found">
+                🧳
+              </span>
+              <span style={{ marginLeft: 8 }}>Izgubljeno & najdeno</span>
             </li>
           </ul>
         </div>
       </div>
       <div className="right">
         <main>
-          <h1>Login</h1>
+          <h1>Prijava</h1>
           <form onSubmit={handleSubmit}>
-            <label htmlFor="usernameOrEmail">Username or Email</label>
+            <label htmlFor="usernameOrEmail">
+              E-naslov ali uporabniško ime
+            </label>
             <input
               id="usernameOrEmail"
               type="text"
@@ -94,7 +116,7 @@ export default function LoginPage() {
               required
               autoComplete="username"
             />
-            <label htmlFor="password">Password</label>
+            <label htmlFor="password">Geslo</label>
             <input
               id="password"
               type="password"
@@ -105,11 +127,11 @@ export default function LoginPage() {
             />
             {error && <div className="error-message">{error}</div>}
             <button type="submit" disabled={loading}>
-              {loading ? "Logging in..." : "Login"}
+              {loading ? "Preverjam podatke..." : "Prijava"}
             </button>
           </form>
           <p>
-            Don't have an account? <a href="/register">Register</a>
+            Nimate računa? <a href="/register">Registracija</a>
           </p>
         </main>
       </div>

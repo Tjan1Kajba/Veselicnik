@@ -40,22 +40,11 @@ export default function RegisterPage() {
 
   return (
     <div className="split-section">
-      <div className="left">
-        <div className="big">CUSTOM MINT MAMBO SWITCH</div>
-        <div className="desc">
-          With thick-lubed custom linear switches combo with a gasket form factor, K689 PRO features cushioned rich linear travel with silky creamy and cozy typing feedback. The brand new upgraded socket is nearly all switches (3/5 pins) compatible.
-        </div>
-        <div className="specs">
-          <div>Actuation Travel<br /><span style={{fontSize:'1.5rem',fontWeight:700}}>2.0±0.5 mm</span></div>
-          <div>Actuation Force<br /><span style={{fontSize:'1.5rem',fontWeight:700}}>40±10 gf</span></div>
-          <div>Total Travel<br /><span style={{fontSize:'1.5rem',fontWeight:700}}>3.60 mm</span></div>
-        </div>
-      </div>
       <div className="right">
         <main>
           <h1>Register</h1>
           <form onSubmit={handleSubmit}>
-            <label htmlFor="username">Username</label>
+            <label htmlFor="username">Uporabniško ime</label>
             <input
               id="username"
               type="text"
@@ -64,7 +53,7 @@ export default function RegisterPage() {
               required
               autoComplete="username"
             />
-            <label htmlFor="email">Email</label>
+            <label htmlFor="email">E-naslov</label>
             <input
               id="email"
               type="email"
@@ -73,7 +62,7 @@ export default function RegisterPage() {
               required
               autoComplete="email"
             />
-            <label htmlFor="password">Password</label>
+            <label htmlFor="password">Geslo</label>
             <input
               id="password"
               type="password"
@@ -82,7 +71,7 @@ export default function RegisterPage() {
               required
               autoComplete="new-password"
             />
-            <label htmlFor="confirmPassword">Confirm Password</label>
+            <label htmlFor="confirmPassword">Potrdi geslo</label>
             <input
               id="confirmPassword"
               type="password"
@@ -93,11 +82,63 @@ export default function RegisterPage() {
             />
             {error && <div className="error-message">{error}</div>}
             <button type="submit" disabled={loading}>
-              {loading ? "Registering..." : "Register"}
+              {loading ? "Registriranje..." : "Registriraj se"}
             </button>
           </form>
-          <p>Already have an account? <a href="/login">Login</a></p>
+          <p>Že imate račun? <a href="/login">Prijavite se</a></p>
         </main>
+      </div>
+      <div className="left">
+        <div className="big">VESELIČNIK</div>
+          <div className="desc">
+            Vaša vse‑v‑enem digitalna rešitev za brezhibno veselico. Planiranje
+            dogodka je izziv. Veseličnik pretvori ta izziv v enostavno, gladko
+            in zabavno izkušnjo za organizatorje in goste. Ne skrbite več za
+            kaos – vse, kar potrebujete, je v eni pametni aplikaciji.
+          </div>
+          <ul className="feature-list">
+            <li>
+              <span
+                className="feature-dot"
+                style={{ background: "#ed8458" }}
+              ></span>
+              <span role="img" aria-label="food">
+                🍔
+              </span>
+              <span style={{ marginLeft: 8 }}>Naročanje hrane & pijač</span>
+            </li>
+            <li>
+              <span
+                className="feature-dot"
+                style={{ background: "#ed8458" }}
+              ></span>
+              <span role="img" aria-label="music">
+                🎵
+              </span>
+              <span style={{ marginLeft: 8 }}>Glasbene želje</span>
+            </li>
+            <li>
+              <span
+                className="feature-dot"
+                style={{ background: "#ed8458" }}
+              ></span>
+              <span role="img" aria-label="lottery">
+                🎟️
+              </span>
+              <span style={{ marginLeft: 8 }}>Srečkolov</span>
+            </li>
+            <li>
+              <span
+                className="feature-dot"
+                style={{ background: "#ed8458" }}
+              ></span>
+              <span role="img" aria-label="lost-found">
+                🧳
+              </span>
+              <span style={{ marginLeft: 8 }}>Izgubljeno & najdeno</span>
+            </li>
+          </ul>
+    
       </div>
     </div>
   );
