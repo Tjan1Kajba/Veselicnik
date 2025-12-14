@@ -6,15 +6,14 @@ WORKDIR /usr/src/app
 COPY package*.json ./
 
 # for production
-# RUN npm ci --omit=dev
-
+RUN npm ci --omit=dev
 
 # for development
-RUN npm install
+# RUN npm install
 
 
 # Copy application source
 COPY . .
 
-EXPOSE 9000
-CMD ["npx", "nodemon", "app.js"]
+EXPOSE 9001
+CMD ["node", "app.js"]
