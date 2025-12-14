@@ -1,19 +1,43 @@
-from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from bson import ObjectId
+from datetime import datetime
+import jwt
+from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
+import os
+
 from models import Order, StatusUpdate, Payment, MenuItem
 from database import orders_collection, menu_collection
-from datetime import datetime
-import requests
 
 app = FastAPI(title="Food Ordering Microservice")
-USER_SERVICE_URL = "http://host.docker.internal:8002"
 
-def get_logged_in_user(session_token: str):
-    cookies = {"session_token": session_token}
-    r = requests.get(f"{USER_SERVICE_URL}/uporabnik/prijavljen", cookies=cookies)
-    if r.status_code == 200:
-        return r.json()
-    return None
+
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production")
+JWT_ALGORITHM = "HS256"
+
+
+def preveri_jwt_token(token: str):
+    try:
+        payload = jwt.decode(
+            token,
+            JWT_SECRET_KEY,
+            algorithms=[JWT_ALGORITHM],
+            audience="api-clients",
+            issuer="uporabniski-sistem"
+        )
+        return payload
+    except ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token je potekel")
+    except InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Neveljaven token")
+
+
+bearer_scheme = HTTPBearer()
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)
+):
+    return preveri_jwt_token(credentials.credentials)
 
 
 def order_serializer(order) -> dict:
@@ -23,7 +47,7 @@ def order_serializer(order) -> dict:
         "items": order["items"],
         "status": order["status"],
         "paid": order["paid"],
-        "total_price": order.get("total_price", 0)  
+        "total_price": order.get("total_price", 0)
     }
 
 
@@ -34,33 +58,24 @@ def get_menu():
         item["_id"] = str(item["_id"])
     return menu
 
-@app.get("/orders/user/{user_id}")
-def get_user_orders(user_id: str):
-    orders = orders_collection.find({"user_id": user_id})
-    return [order_serializer(order) for order in orders]
-
-
 @app.post("/menu")
-def add_menu_item(item: MenuItem):
+def add_menu_item(item: MenuItem, user_data: dict = Depends(get_current_user)):
     result = menu_collection.insert_one(item.dict())
     return {"id": str(result.inserted_id)}
 
+@app.delete("/menu/{id}")
+def delete_menu_item(id: str, user_data: dict = Depends(get_current_user)):
+    result = menu_collection.delete_one({"_id": ObjectId(id)})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Menu item not found")
+    return {"message": "Menu item deleted"}
+
+
 @app.post("/orders")
-def create_order(order: Order, request: Request):
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+def create_order(order: Order, user_data: dict = Depends(get_current_user)):
+    username = user_data["username"]
+    id_veselica = user_data.get("id_veselica")
 
-    auth_response = get_logged_in_user(session_token)
-    if not auth_response:
-        raise HTTPException(status_code=401, detail="Invalid session")
-
-    user = auth_response.get("user")
-    if not user:
-        raise HTTPException(status_code=401, detail="Invalid user data")
-
-    username = user["uporabnisko_ime"]
-    id_veselica = user.get("id_veselica")
     if not id_veselica:
         raise HTTPException(status_code=400, detail="User is not registered to any veselica")
 
@@ -75,6 +90,9 @@ def create_order(order: Order, request: Request):
     order_dict["total_price"] = total_price
     order_dict["user_id"] = username
     order_dict["id_veselica"] = id_veselica
+    order_dict["paid"] = False
+    order_dict["status"] = "created"
+    order_dict["created_at"] = datetime.utcnow()
 
     result = orders_collection.insert_one(order_dict)
     return {
@@ -84,10 +102,27 @@ def create_order(order: Order, request: Request):
         "id_veselica": id_veselica
     }
 
+@app.get("/orders")
+def get_all_orders(user_data: dict = Depends(get_current_user)):
+    orders = orders_collection.find()
+    return [order_serializer(order) for order in orders]
 
+@app.get("/orders/user/{user_id}")
+def get_user_orders(user_id: str, user_data: dict = Depends(get_current_user)):
+    orders = orders_collection.find({"user_id": user_id})
+    return [order_serializer(order) for order in orders]
+
+@app.get("/orders/user/{user_id}/paid")
+def check_paid_orders(user_id: str, user_data: dict = Depends(get_current_user)):
+    count = orders_collection.count_documents({"user_id": user_id, "paid": True})
+    return {"has_paid_orders": count > 0}
 
 @app.post("/orders/{id}/status")
-def update_order_status(id: str, status_update: StatusUpdate):
+def update_order_status(
+    id: str,
+    status_update: StatusUpdate,
+    user_data: dict = Depends(get_current_user)
+):
     result = orders_collection.update_one(
         {"_id": ObjectId(id)},
         {"$set": {"status": status_update.status}}
@@ -96,24 +131,12 @@ def update_order_status(id: str, status_update: StatusUpdate):
         raise HTTPException(status_code=404, detail="Order not found")
     return {"message": "Status updated"}
 
-@app.get("/orders/user/{user_id}")
-def get_user_orders(user_id: str):
-    orders = orders_collection.find({"user_id": user_id})
-    return [order_serializer(order) for order in orders]
-
-@app.get("/orders")
-def get_all_orders():
-    orders = orders_collection.find()
-    return [order_serializer(order) for order in orders]
-
-@app.get("/orders/user/{user_id}/paid")
-def check_paid_orders(user_id: str):
-    count = orders_collection.count_documents({"user_id": user_id, "paid": True})
-    return {"has_paid_orders": count > 0}
-
-
 @app.post("/orders/{id}/pay")
-def pay_order(id: str, payment: Payment):
+def pay_order(
+    id: str,
+    payment: Payment,
+    user_data: dict = Depends(get_current_user)
+):
     order = orders_collection.find_one({"_id": ObjectId(id)})
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
@@ -122,22 +145,21 @@ def pay_order(id: str, payment: Payment):
         raise HTTPException(status_code=400, detail="Payment amount is less than order total")
 
     payment.timestamp = datetime.utcnow()
-    result = orders_collection.update_one(
+
+    orders_collection.update_one(
         {"_id": ObjectId(id)},
         {"$set": {"paid": True, "payment": payment.dict()}}
     )
-    return {"message": "Order paid", "total_price": order["total_price"], "payment": payment.dict()}
+
+    return {
+        "message": "Order paid",
+        "total_price": order["total_price"],
+        "payment": payment.dict()
+    }
 
 @app.delete("/orders/{id}")
-def delete_order(id: str):
+def delete_order(id: str, user_data: dict = Depends(get_current_user)):
     result = orders_collection.delete_one({"_id": ObjectId(id)})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Order not found")
     return {"message": "Order deleted"}
-
-@app.delete("/menu/{id}")
-def delete_menu_item(id: str):
-    result = menu_collection.delete_one({"_id": ObjectId(id)})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Menu item not found")
-    return {"message": "Menu item deleted"}
