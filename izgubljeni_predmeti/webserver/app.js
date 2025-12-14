@@ -1,10 +1,13 @@
-const express = require("express");
+  const express = require("express");
 const mongoose = require("mongoose");
 const swaggerUi = require("swagger-ui-express");
 const swaggerJsdoc = require("swagger-jsdoc");
 const dotenv = require("dotenv");
 
 const axios = require("axios");
+
+const authenticateToken = require("./middleware/authMiddleware.js");
+const { requireAdmin } = require("./middleware/roleMiddleware.js");
 
 dotenv.config();
 
@@ -62,12 +65,23 @@ const swaggerOptions = {
       version: "1.0.0",
       description: "API za prijavo izgubljenih in najdenih predmetov",
     },
+
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+        },
+      },
+    },
   },
   apis: ["./app.js"],
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
-app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use("/docs",
+  swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 /**
  * @swagger
@@ -109,6 +123,8 @@ app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
  *     summary: Prijava izgubljenega predmeta
  *     tags:
  *       - Lost
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -126,7 +142,9 @@ app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
  *       201:
  *         description: Item created
  */
-app.post("/lost", async (req, res) => {
+app.post("/lost",
+  authenticateToken,
+ async (req, res) => {
   const item = await Item.create({ type: "lost", ...req.body });
   res.status(201).json(item);
 });
@@ -137,6 +155,8 @@ app.post("/lost", async (req, res) => {
  *   get:
  *     summary: Vrne seznam vseh izgubljenih predmetov
  *     tags: [Lost]
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: List of lost items
@@ -147,7 +167,9 @@ app.post("/lost", async (req, res) => {
  *               items:
  *                 $ref: '#/components/schemas/Item'
  */
-app.get("/lost", async (req, res) => {
+app.get("/lost",
+  authenticateToken,
+  async (req, res) => {
   const items = await Item.find({ type: "lost" });
   res.json(items);
 });
@@ -158,6 +180,8 @@ app.get("/lost", async (req, res) => {
  *   get:
  *     summary: Vrne podrobnosti o določenem izgubljenem predmetu
  *     tags: [Lost]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - name: id
  *         in: path
@@ -174,7 +198,9 @@ app.get("/lost", async (req, res) => {
  *       404:
  *         description: Item not found
  */
-app.get("/lost/:id", async (req, res) => {
+app.get("/lost/:id",
+  authenticateToken,
+ async (req, res) => {
   const item = await Item.findById(req.params.id);
   if (!item || item.type !== "lost")
     return res.status(404).json({ message: "Predmet ne obstaja." });
@@ -188,6 +214,8 @@ app.get("/lost/:id", async (req, res) => {
  *   put:
  *     summary: Posodobi podatke o izgubljenem predmetu
  *     tags: [Lost]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - name: id
  *         in: path
@@ -215,7 +243,9 @@ app.get("/lost/:id", async (req, res) => {
  *       404:
  *         description: Item not found
  */
-app.put("/lost/:id", async (req, res) => {
+app.put("/lost/:id",
+  authenticateToken,
+ async (req, res) => {
   const item = await Item.findOneAndUpdate(
     { _id: req.params.id, type: "lost" },
     req.body,
@@ -231,6 +261,8 @@ app.put("/lost/:id", async (req, res) => {
  *   delete:
  *     summary: Izbriše prijavo izgubljenega predmeta
  *     tags: [Lost]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - name: id
  *         in: path
@@ -243,7 +275,9 @@ app.put("/lost/:id", async (req, res) => {
  *       404:
  *         description: Item not found
  */
-app.delete("/lost/:id", async (req, res) => {
+app.delete("/lost/:id",
+  authenticateToken,
+ async (req, res) => {
   const result = await Item.findOneAndDelete({
     _id: req.params.id,
     type: "lost",
@@ -264,6 +298,8 @@ app.delete("/lost/:id", async (req, res) => {
  *   post:
  *     summary: Prijava najdenega predmeta in naročilo hrane
  *     tags: [Found]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -291,7 +327,9 @@ app.delete("/lost/:id", async (req, res) => {
  *                 foodOrderResponse:
  *                   type: object
  */
-app.post("/found", async (req, res) => {
+app.post("/found",
+  authenticateToken,
+ async (req, res) => {
   const { name, description, userId } = req.body;
 
   try {
