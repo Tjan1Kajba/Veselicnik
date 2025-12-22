@@ -1,7 +1,9 @@
+/* Stran: /login */
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { showToast } from "../utils/toast";
+import "./login.css";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -26,25 +28,23 @@ export default function LoginPage() {
       });
       if (!res.ok) {
         console.log("Login failed, status:", res.status);
-        let errorMsg = "Login failed";
+        let errorMsg = "Prijava ni uspela";
         try {
           const data = await res.json();
           console.log("Error response JSON:", data);
-          errorMsg = data.detail || data.message || errorMsg;
+          errorMsg =
+            data.detail ||
+            data.message ||
+            (res.status === 401
+              ? "Napačni prijavni podatki"
+              : "Prijava ni uspela");
         } catch (e) {
           console.log("Failed to parse error JSON:", e);
           // ignore JSON parse errors and use default message
         }
 
         setError(errorMsg);
-        if (
-          errorMsg.toLowerCase().includes("jwt") ||
-          errorMsg.toLowerCase().includes("token") ||
-          errorMsg.toLowerCase().includes("expired") ||
-          errorMsg.toLowerCase().includes("invalid")
-        ) {
-          showToast(errorMsg, "error");
-        }
+        showToast(errorMsg, "error");
       } else {
         console.log("Login success, about to parse JSON");
         // Best-effort JSON parse; don't block redirect on failure
@@ -56,7 +56,7 @@ export default function LoginPage() {
         }
         try {
           console.log("Showing success toast");
-          showToast("Success", "success");
+          showToast("Prijava uspešna. Preusmerjam ...", "success");
         } catch (e) {
           console.log("Toast failed:", e);
           // even if toast fails, still redirect
@@ -67,8 +67,9 @@ export default function LoginPage() {
         console.log("router.push called");
       }
     } catch (err: any) {
-      setError("Network error");
-      showToast("Network error", "error");
+      const msg = "Napaka omrežja pri prijavi";
+      setError(msg);
+      showToast(msg, "error");
     } finally {
       setLoading(false);
     }

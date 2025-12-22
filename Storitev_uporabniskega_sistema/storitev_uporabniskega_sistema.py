@@ -14,18 +14,21 @@ import os
 import jwt
 
 
-
-JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'your-secret-key-change-in-production')
+JWT_SECRET_KEY = os.getenv(
+    'JWT_SECRET_KEY', 'your-secret-key-change-in-production')
 JWT_ALGORITHM = os.getenv('JWT_ALGORITHM', 'HS256')
-JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv('JWT_ACCESS_TOKEN_EXPIRE_MINUTES', 30))
-JWT_REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv('JWT_REFRESH_TOKEN_EXPIRE_DAYS', 7))
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(
+    os.getenv('JWT_ACCESS_TOKEN_EXPIRE_MINUTES', 30))
+JWT_REFRESH_TOKEN_EXPIRE_DAYS = int(
+    os.getenv('JWT_REFRESH_TOKEN_EXPIRE_DAYS', 7))
 
 JWT_ISSUER = os.getenv('JWT_ISSUER', 'uporabniski-sistem')
 JWT_AUDIENCE = os.getenv('JWT_AUDIENCE', 'api-clients')
 
 security = HTTPBearer(auto_error=False)
 
-MONGODB_URL = os.getenv('MONGODB_URL', 'mongodb://localhost:27017/uporabniski_sistem')
+MONGODB_URL = os.getenv(
+    'MONGODB_URL', 'mongodb://localhost:27017/uporabniski_sistem')
 SERVICE_HOST = os.getenv('SERVICE_HOST', '0.0.0.0')
 SERVICE_PORT = int(os.getenv('SERVICE_PORT', 8000))
 
@@ -105,19 +108,16 @@ app.openapi_tags = [
 
 app.add_middleware(
     CORSMiddleware,
-
-    allow_origins=["http://frontend_user:3000",
-                   "http://localhost:3000",
-                   "http://localhost:8000",
-                   "http://localhost:8001",
-                   "http://localhost:8002",
-                   "http://localhost:8003",
-                   "http://localhost:8004"
-                   
-                   ],
-
-
-
+    allow_origins=[
+        "http://frontend_user:3000",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8000",
+        "http://localhost:8001",
+        "http://localhost:8002",
+        "http://localhost:8003",
+        "http://localhost:8004",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -134,7 +134,7 @@ class UstvariUporabnika(BaseModel):
 
 
 class OdgovorUporabnika(BaseModel):
-    
+
     id: str
     uporabnisko_ime: str
     email: str
@@ -158,6 +158,7 @@ class PrijavljenOdgovor(BaseModel):
     token_type: str = "bearer"
     expires_in: int
     user: OdgovorUporabnika
+
 
 class JWTResponse(BaseModel):
     access_token: str
@@ -186,6 +187,15 @@ class SpremeniGeslo(BaseModel):
             raise ValueError('Geslo mora biti vsaj 4 znake dolgo')
         return v
 
+    @model_validator(mode="after")
+    def gesli_se_ujemata(self):
+        """
+        Pydantic v2 kompatibilna validacija, ki preveri ujemanje gesel.
+        """
+        if self.novo_geslo != self.ponovitev_novega_gesla:
+            raise ValueError(
+                "Novo geslo in ponovitev novega gesla se ne ujemata")
+        return self
 
 
 class RefreshTokenRequest(BaseModel):
@@ -200,7 +210,7 @@ class UstvariVeselico(BaseModel):
     cas: datetime
     lokacija: str
     ime_veselice: str
-    st_pirjaveljenih: int = 0
+    max_udelezencev: int = 0
     starost_za_vstop: Optional[int] = 18
     opis_dogodka: Optional[str] = None
 
@@ -212,6 +222,11 @@ class OdgovorVeselice(UstvariVeselico):
     ustvarjeno: datetime
     prijavljeni_uporabniki: List[str] = []
     st_pirjaveljenih: int = 0
+    max_udelezencev: int = 0
+
+
+class OdgovorVeseliceDetail(OdgovorVeselice):
+    prijavljeni_uporabniki_podatki: List[str] = []
 
 
 class PrijavaNaVeselico(BaseModel):
@@ -227,10 +242,8 @@ def ustvari_jwt_token(data: Dict[str, Any], token_type: str = "access") -> str:
     """
     to_encode = data.copy()
 
-
     if "sub" not in to_encode:
         raise ValueError("JWT token mora vsebovati 'sub' (subject) claim")
-
 
     if token_type == "refresh":
         expire = datetime.utcnow() + timedelta(days=JWT_REFRESH_TOKEN_EXPIRE_DAYS)
@@ -238,7 +251,6 @@ def ustvari_jwt_token(data: Dict[str, Any], token_type: str = "access") -> str:
     else:
         expire = datetime.utcnow() + timedelta(minutes=JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
         expires_delta = timedelta(minutes=JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
-
 
     to_encode.update({
         "exp": expire,
@@ -254,7 +266,8 @@ def ustvari_jwt_token(data: Dict[str, Any], token_type: str = "access") -> str:
         to_encode["name"] = to_encode.get("name", "")
         to_encode["username"] = to_encode.get("username", "")
 
-    encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY,
+                             algorithm=JWT_ALGORITHM)
     return encoded_jwt
 
 
@@ -534,8 +547,6 @@ def preveri_geslo(geslo: str, zakodirano_geslo: str) -> bool:
     return pwd_context.verify(geslo, zakodirano_geslo)
 
 
-
-
 @app.post("/uporabnik/registracija", tags=["Sistem registracije in prijave"], response_model=OdgovorUporabnika)
 async def registracija(podatki: UstvariUporabnika):
     """
@@ -675,8 +686,8 @@ async def osvezi_token(podatki: RefreshTokenRequest):
                     sessions_collection.insert_one(refresh_token_data)
                     print(f"Dodan nov refresh token v bazo: {token_id}")
                 except Exception as e:
-                    print(f"Napaka pri shranjevanju refresh tokena v bazo: {e}")
-
+                    print(
+                        f"Napaka pri shranjevanju refresh tokena v bazo: {e}")
 
         if mongo_client is None:
             raise HTTPException(status_code=503, detail="Baza ni na voljo")
@@ -712,6 +723,7 @@ async def osvezi_token(podatki: RefreshTokenRequest):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Napaka pri osveževanju tokena: {str(e)}"
         )
+
 
 @app.post("/uporabnik/odjava", tags=["Sistem registracije in prijave"])
 async def odjava(request: Request, response: Response, current_user: dict = Depends(zahtevaj_avtentikacijo)):
@@ -787,7 +799,6 @@ async def vsi_uporabniki(current_user: dict = Depends(zahtevaj_avtentikacijo)):
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Napaka pri pridobivanju uporabnikov: {str(e)}")
-
 
 
 @app.put("/uporabnik/posodobi-uporabnika", tags=["Posodobi uporabnika"], response_model=OdgovorUporabnika)
@@ -886,6 +897,19 @@ async def spremeni_geslo(
         raise HTTPException(status_code=503, detail="Baza ni na voljo")
 
     try:
+
+        if podatki.novo_geslo != podatki.ponovitev_novega_gesla:
+            raise HTTPException(
+                status_code=400,
+                detail="Novo geslo in ponovitev novega gesla se ne ujemata"
+            )
+
+        if len(podatki.novo_geslo) < 4:
+            raise HTTPException(
+                status_code=400,
+                detail="Geslo mora biti vsaj 4 znake dolgo"
+            )
+
         novo_zakodirano_geslo = zakodiraj_geslo(podatki.novo_geslo)
         result = users_collection.update_one(
             {"_id": ObjectId(current_user["id"])},
@@ -895,11 +919,20 @@ async def spremeni_geslo(
             }}
         )
 
-        if result.modified_count == 0:
+        if result.matched_count == 0:
             raise HTTPException(
-                status_code=500,
-                detail="Napaka pri spreminjanju gesla"
+                status_code=404,
+                detail="Uporabnik ni najden"
             )
+
+        if result.modified_count == 0:
+            return {
+                "sporocilo": "Geslo je ostalo nespremenjeno (novo geslo je enako prejšnjemu)",
+                "uporabnik": {
+                    "id": current_user["id"],
+                    "uporabnisko_ime": current_user["uporabnisko_ime"]
+                }
+            }
 
         return {
             "sporocilo": "Geslo uspešno spremenjeno",
@@ -1069,6 +1102,10 @@ async def ustvari_veselico(
         veselica["ustvarjeno"] = datetime.utcnow()
         veselica["prijavljeni_uporabniki"] = []
         veselica["st_pirjaveljenih"] = 0
+        
+        # Preveri, če je nastavljen max_udelezencev
+        if "max_udelezencev" not in veselica:
+            veselica["max_udelezencev"] = 0
 
         result = veselice_collection.insert_one(veselica)
         veselica["id"] = str(result.inserted_id)
@@ -1106,6 +1143,61 @@ async def pridobi_vse_veselice(
         )
 
 
+@app.get("/veselice/{veselica_id}", tags=["Veselice"], response_model=OdgovorVeseliceDetail)
+async def pridobi_veselico(
+    veselica_id: str,
+    current_user: dict = Depends(zahtevaj_avtentikacijo)
+):
+    """
+    Pridobi podatke o posamezni veselici.
+    """
+    if mongo_client is None or veselice_collection is None:
+        raise HTTPException(status_code=503, detail="Baza ni na voljo")
+
+    try:
+        veselica = veselice_collection.find_one({"_id": ObjectId(veselica_id)})
+        if not veselica:
+            raise HTTPException(
+                status_code=404,
+                detail="Veselica ne obstaja"
+            )
+        
+        veselica["id"] = str(veselica["_id"])
+        
+        # Pridobi podatke o prijavljenih uporabnikih
+        prijavljeni_ids = veselica.get("prijavljeni_uporabniki", [])
+        prijavljeni_podatki = []
+        
+        if prijavljeni_ids and users_collection is not None:
+            # Pretvori string IDje v ObjectId
+            object_ids = []
+            for uid in prijavljeni_ids:
+                try:
+                    object_ids.append(ObjectId(uid))
+                except:
+                    pass
+            
+            users = users_collection.find(
+                {"_id": {"$in": object_ids}},
+                {"uporabnisko_ime": 1}
+            )
+            
+            for user in users:
+                prijavljeni_podatki.append(user["uporabnisko_ime"])
+        
+        veselica["prijavljeni_uporabniki_podatki"] = prijavljeni_podatki
+        
+        return OdgovorVeseliceDetail(**veselica)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Napaka pri pridobivanju veselice: {str(e)}"
+        )
+
+
 @app.post("/veselice/{veselica_id}/prijava", tags=["Veselice"])
 async def prijava_na_veselico(
     veselica_id: str,
@@ -1135,9 +1227,9 @@ async def prijava_na_veselico(
             )
 
         st_pirjaveljenih = veselica.get("st_pirjaveljenih", 0)
-        max_pirjaveljenih = veselica.get("st_pirjaveljenih", 0)
+        max_udelezencev = veselica.get("max_udelezencev", 0)
 
-        if max_pirjaveljenih > 0 and st_pirjaveljenih >= max_pirjaveljenih:
+        if max_udelezencev > 0 and st_pirjaveljenih >= max_udelezencev:
             raise HTTPException(
                 status_code=400,
                 detail="Veselica je že polna"
@@ -1179,7 +1271,7 @@ async def prijava_na_veselico(
             status_code=500,
             detail=f"Napaka pri prijavi na veselico: {str(e)}"
         )
-    
+
 
 @app.post("/veselice/{veselica_id}/odjava", tags=["Veselice"])
 async def odjava_z_veselice(
@@ -1202,7 +1294,6 @@ async def odjava_z_veselice(
 
         user_id = current_user["id"]
         user_name = current_user["uporabnisko_ime"]
-
 
         if user_id not in veselica.get("prijavljeni_uporabniki", []):
             raise HTTPException(
@@ -1244,6 +1335,52 @@ async def odjava_z_veselice(
             status_code=500,
             detail=f"Napaka pri odjavi z veselice: {str(e)}"
         )
+
+
+@app.delete("/veselice/{veselica_id}", tags=["Veselice"], response_model=dict)
+async def izbrisi_veselico(
+    veselica_id: str,
+    current_user: dict = Depends(zahtevaj_admin_pravice)
+):
+    """
+    Izbriši veselico. 
+    Dostop imajo samo uporabniki tipa admin.
+    """
+    if mongo_client is None or veselice_collection is None:
+        raise HTTPException(status_code=503, detail="Baza ni na voljo")
+
+    try:
+        veselica = veselice_collection.find_one({"_id": ObjectId(veselica_id)})
+        if not veselica:
+            raise HTTPException(
+                status_code=404,
+                detail="Veselica ne obstaja"
+            )
+
+        result = veselice_collection.delete_one({"_id": ObjectId(veselica_id)})
+
+        if result.deleted_count == 0:
+            raise HTTPException(
+                status_code=500,
+                detail="Napaka pri brisanju veselice"
+            )
+
+        return {
+            "sporocilo": "Veselica uspešno izbrisana",
+            "veselica": {
+                "id": veselica_id,
+                "ime": veselica["ime_veselice"]
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Napaka pri brisanju veselice: {str(e)}"
+        )
+
 
 @app.post("/auth/verify-token", tags=["JWT Avtentikacija"])
 async def verify_token_via_body(podatki: TokenForVerification):

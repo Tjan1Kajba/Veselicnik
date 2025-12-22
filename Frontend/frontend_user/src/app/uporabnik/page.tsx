@@ -1,30 +1,30 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import UpdateUserForm from "./UpdateUserForm";
 import ChangePasswordForm from "./ChangePasswordForm";
+import UpdateUserForm from "./UpdateUserForm";
 import {
   FaUser,
-  FaLock,
-  FaCog,
   FaSignOutAlt,
   FaShieldAlt,
   FaEnvelope,
   FaClipboardList,
   FaKey,
-  FaCheck,
-  FaExclamation,
-  FaBell,
   FaExclamationTriangle,
+  FaUsers,
+  FaEdit,
+  FaChevronDown,
+  FaChevronUp,
+  FaTrash,
 } from "react-icons/fa";
-import "./dashboard.css"; 
-
-
+import "./dashboard.css";
+import { showToast } from "../utils/toast";
 
 interface UserData {
   id: string;
   username: string;
   email: string;
+  tip_uporabnika?: string;
   [key: string]: any;
 }
 
@@ -41,10 +41,14 @@ const UserProfile = () => {
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<
-    "profile" | "security" | "settings"
-  >("profile");
+  const [openAccordion, setOpenAccordion] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const router = useRouter();
+
+  const toggleAccordion = (section: string) => {
+    setOpenAccordion(openAccordion === section ? null : section);
+  };
 
   const fetchUser = () => {
     setLoading(true);
@@ -52,7 +56,9 @@ const UserProfile = () => {
       credentials: "include",
     })
       .then(async (res) => {
-        if (!res.ok) throw new Error("Neuspešno pridobivanje podatkov.");
+        if (!res.ok) {
+          throw new Error("Neuspešno pridobivanje podatkov o uporabniku.");
+        }
         const data: UserResponse = await res.json();
 
         if (data.user) {
@@ -68,7 +74,10 @@ const UserProfile = () => {
           setUser(userData as UserData);
         }
       })
-      .catch((err) => setError(err.message))
+      .catch((err) => {
+        setError(err.message);
+        showToast(err.message, "error");
+      })
       .finally(() => setLoading(false));
   };
 
@@ -80,9 +89,41 @@ const UserProfile = () => {
     fetch("http://localhost:8002/uporabnik/odjava", {
       method: "POST",
       credentials: "include",
-    }).then(() => {
-      router.push("/");
-    });
+    })
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error("Odjava ni uspela.");
+        }
+        showToast("Uspešno ste se odjavili.", "success");
+        router.push("/");
+      })
+      .catch((err) => {
+        showToast(err.message || "Napaka pri odjavi.", "error");
+      });
+  };
+
+  const handleDeleteAccount = () => {
+    setDeleting(true);
+    fetch("http://localhost:8002/uporabnik/izbrisi-racun", {
+      method: "DELETE",
+      credentials: "include",
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          throw new Error(errorData.detail || "Brisanje računa ni uspelo.");
+        }
+        return res.json();
+      })
+      .then((data) => {
+        showToast(data.sporocilo || "Račun uspešno izbrisan.", "success");
+        router.push("/");
+      })
+      .catch((err) => {
+        showToast(err.message || "Napaka pri brisanju računa.", "error");
+        setDeleting(false);
+        setShowDeleteConfirm(false);
+      });
   };
 
   if (loading)
@@ -287,33 +328,32 @@ const UserProfile = () => {
         </div>
 
         <nav className="sidebar-nav">
-          <button
-            className={`nav-item ${activeTab === "profile" ? "active" : ""}`}
-            onClick={() => setActiveTab("profile")}
-          >
+          <button className="nav-item active">
             <span className="nav-icon">
               <FaClipboardList size={20} />
             </span>
             <span className="nav-text">Profil</span>
           </button>
           <button
-            className={`nav-item ${activeTab === "security" ? "active" : ""}`}
-            onClick={() => setActiveTab("security")}
+            className="nav-item"
+            onClick={() => router.push("/veselice-pregled")}
           >
             <span className="nav-icon">
-              <FaLock size={20} />
+              <FaUsers size={20} />
             </span>
-            <span className="nav-text">Varnost</span>
+            <span className="nav-text">Veselice</span>
           </button>
-          <button
-            className={`nav-item ${activeTab === "settings" ? "active" : ""}`}
-            onClick={() => setActiveTab("settings")}
-          >
-            <span className="nav-icon">
-              <FaCog size={20} />
-            </span>
-            <span className="nav-text">Nastavitve</span>
-          </button>
+          {user?.tip_uporabnika === "admin" && (
+            <button
+              className="nav-item"
+              onClick={() => router.push("/veselice")}
+            >
+              <span className="nav-icon">
+                <FaUsers size={20} />
+              </span>
+              <span className="nav-text">Upravljanje</span>
+            </button>
+          )}
         </nav>
 
         <div className="sidebar-footer">
@@ -329,11 +369,7 @@ const UserProfile = () => {
       {/* Main Content */}
       <div className="modern-main">
         <header className="main-header">
-          <h1 className="main-title">
-            {activeTab === "profile" && "Uporabniški profil"}
-            {activeTab === "security" && "Varnostne nastavitve"}
-            {activeTab === "settings" && "Nastavitve računa"}
-          </h1>
+          <h1 className="main-title">Uporabniški profil</h1>
           <div className="header-badge">
             <span className="badge-icon">
               <FaShieldAlt size={16} />
@@ -343,136 +379,227 @@ const UserProfile = () => {
         </header>
 
         <div className="main-content">
-          {activeTab === "profile" && (
-            <>
-              <div className="profile-card">
-                <div className="card-header">
-                  <h2 className="card-title">
-                    <span className="title-icon">
-                      <FaUser size={20} />
-                    </span>
-                    Osebni podatki
-                  </h2>
-                  <span className="badge">Osnovni podatki</span>
-                </div>
-
-                <div className="profile-grid">
-                  {displayData.map(({ key, value, displayName }) => (
-                    <div key={key} className="profile-field">
-                      <div className="field-header">
-                        <span className="field-label">{displayName}</span>
-                        <span className="field-type">{getDataType(value)}</span>
-                      </div>
-                      <div className="field-value">
-                        {formatValue(key, value)}
-                      </div>
+          {/* Osebni podatki - Read Only */}
+          <section className="content-section">
+            <div className="section-header">
+              <h2 className="section-title">
+                <span className="title-icon">
+                  <FaUser size={20} />
+                </span>
+                Osebni podatki
+              </h2>
+              <span className="section-badge">Samo za ogled</span>
+            </div>
+            <div className="profile-card">
+              <div className="profile-grid">
+                {displayData.map(({ key, value, displayName }) => (
+                  <div key={key} className="profile-field">
+                    <div className="field-header">
+                      <span className="field-label">{displayName}</span>
+                      <span className="field-type">{getDataType(value)}</span>
                     </div>
-                  ))}
+                    <div className="field-value">{formatValue(key, value)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* Posodobi podatke in Sprememba gesla - Accordion */}
+          <div className="form-sections-grid">
+            {/* Posodobi podatke */}
+            <div className="accordion-section">
+              <div
+                className="accordion-header"
+                onClick={() => toggleAccordion("update")}
+              >
+                <h2 className="section-title">
+                  <span className="title-icon">
+                    <FaEdit size={20} />
+                  </span>
+                  Posodobi podatke
+                </h2>
+                <div className="accordion-header-right">
+                  <span className="section-badge">Uredi informacije</span>
+                  <span className="accordion-icon">
+                    {openAccordion === "update" ? (
+                      <FaChevronUp size={18} />
+                    ) : (
+                      <FaChevronDown size={18} />
+                    )}
+                  </span>
                 </div>
               </div>
-
-              <div className="stats-grid">
-                <div className="stat-card">
-                  <div className="stat-icon">
-                    <FaShieldAlt size={24} />
-                  </div>
-                  <div className="stat-content">
-                    <h3>Varna seja</h3>
-                    <p>Aktivna več kot 30 minut</p>
-                  </div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-icon">
-                    <FaEnvelope size={24} />
-                  </div>
-                  <div className="stat-content">
-                    <h3>E-pošta</h3>
-                    <p>{user.email ? "Potrjena" : "Ni potrjena"}</p>
-                  </div>
+              <div
+                className={`accordion-content ${
+                  openAccordion === "update" ? "open" : ""
+                }`}
+              >
+                <div className="section-card">
+                  <UpdateUserForm onSuccess={fetchUser} />
                 </div>
               </div>
-            </>
-          )}
+            </div>
 
-          {activeTab === "security" && (
-            <div className="security-section">
-              <div className="section-card">
+            {/* Sprememba gesla */}
+            <div className="accordion-section">
+              <div
+                className="accordion-header"
+                onClick={() => toggleAccordion("password")}
+              >
                 <h2 className="section-title">
                   <span className="title-icon">
                     <FaKey size={20} />
                   </span>
                   Sprememba gesla
                 </h2>
-                <ChangePasswordForm onSuccess={fetchUser} />
+                <div className="accordion-header-right">
+                  <span className="section-badge">Varnost</span>
+                  <span className="accordion-icon">
+                    {openAccordion === "password" ? (
+                      <FaChevronUp size={18} />
+                    ) : (
+                      <FaChevronDown size={18} />
+                    )}
+                  </span>
+                </div>
               </div>
+              <div
+                className={`accordion-content ${
+                  openAccordion === "password" ? "open" : ""
+                }`}
+              >
+                <div className="section-card">
+                  <ChangePasswordForm onSuccess={fetchUser} />
+                </div>
+              </div>
+            </div>
 
-              <div className="section-card">
+            {/* Izbriši račun */}
+            <div className="accordion-section">
+              <div
+                className="accordion-header"
+                onClick={() => toggleAccordion("delete")}
+              >
                 <h2 className="section-title">
                   <span className="title-icon">
-                    <FaShieldAlt size={20} />
+                    <FaTrash size={20} />
                   </span>
-                  Varnostni pregled
+                  Izbriši račun
                 </h2>
-                <div className="security-checklist">
-                  <div className="check-item checked">
-                    <div className="check-icon">
-                      <FaCheck size={20} />
+                <div className="accordion-header-right">
+                  <span className="section-badge danger">Nepovratno</span>
+                  <span className="accordion-icon">
+                    {openAccordion === "delete" ? (
+                      <FaChevronUp size={18} />
+                    ) : (
+                      <FaChevronDown size={18} />
+                    )}
+                  </span>
+                </div>
+              </div>
+              <div
+                className={`accordion-content ${
+                  openAccordion === "delete" ? "open" : ""
+                }`}
+              >
+                <div className="section-card">
+                  <div className="delete-account-section">
+                    <div className="delete-warning">
+                      <div className="warning-icon">
+                        <FaExclamationTriangle size={24} />
+                      </div>
+                      <h3>Opozorilo: To dejanje je nepovratno</h3>
+                      <p>
+                        Z brisanjem računa boste trajno izbrisali vse svoje
+                        podatke, vključno z osebnimi informacijami in zgodovino.
+                        Tega dejanja ni mogoče razveljaviti.
+                      </p>
                     </div>
-                    <div className="check-content">
-                      <h4>Močno geslo</h4>
-                      <p>Vaše geslo ustreza varnostnim zahtevam</p>
-                    </div>
-                  </div>
-                  <div className="check-item">
-                    <div className="check-icon">
-                      <FaExclamation size={20} />
-                    </div>
-                    <div className="check-content">
-                      <h4>Dvo-stopenjska avtentikacija</h4>
-                      <p>Dodatna zaščita ni omogočena</p>
-                    </div>
+                    <button
+                      className="delete-account-button"
+                      onClick={() => setShowDeleteConfirm(true)}
+                      disabled={deleting}
+                    >
+                      <FaTrash size={18} />
+                      Izbriši račun
+                    </button>
                   </div>
                 </div>
               </div>
             </div>
-          )}
-
-          {activeTab === "settings" && (
-            <div className="settings-section">
-              <div className="section-card">
-                <h2 className="section-title">
-                  <span className="title-icon">
-                    <FaCog size={20} />
-                  </span>
-                  Posodobi podatke
-                </h2>
-                <UpdateUserForm onSuccess={fetchUser} />
-              </div>
-
-              <div className="section-card">
-                <h2 className="section-title">
-                  <span className="title-icon">
-                    <FaBell size={20} />
-                  </span>
-                  Obvestila
-                </h2>
-                <div className="settings-list">
-                  <div className="setting-item">
-                    <div className="setting-content">
-                      <h4>E-poštna obvestila</h4>
-                      <p>Prejemaj obvestila o pomembnih spremembah</p>
-                    </div>
-                    <label className="switch">
-                      <input type="checkbox" defaultChecked />
-                      <span className="slider"></span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div
+          className="modal-overlay"
+          onClick={() => !deleting && setShowDeleteConfirm(false)}
+        >
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-warning-icon">
+                <FaExclamationTriangle size={32} />
+              </div>
+              <h2>Potrditev brisanja računa</h2>
+            </div>
+            <div className="modal-body">
+              <p>
+                Ali ste prepričani, da želite izbrisati svoj račun? To dejanje
+                je
+                <strong> nepovratno</strong> in boste izgubili vse svoje
+                podatke.
+              </p>
+              <p className="modal-subtext">
+                Za potrditev vnesite <strong>IZBRIŠI</strong> v spodnje polje:
+              </p>
+              <input
+                type="text"
+                id="confirm-delete-input"
+                placeholder="Vnesite IZBRIŠI"
+                className="confirm-input"
+                disabled={deleting}
+              />
+            </div>
+            <div className="modal-footer">
+              <button
+                className="modal-button cancel-button"
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  const input = document.getElementById(
+                    "confirm-delete-input"
+                  ) as HTMLInputElement;
+                  if (input) input.value = "";
+                }}
+                disabled={deleting}
+              >
+                Prekliči
+              </button>
+              <button
+                className="modal-button delete-button"
+                onClick={() => {
+                  const input = document.getElementById(
+                    "confirm-delete-input"
+                  ) as HTMLInputElement;
+                  if (input && input.value === "IZBRIŠI") {
+                    handleDeleteAccount();
+                  } else {
+                    showToast(
+                      "Prosimo, vnesite 'IZBRIŠI' za potrditev.",
+                      "error"
+                    );
+                  }
+                }}
+                disabled={deleting}
+              >
+                {deleting ? "Brišem..." : "Izbriši račun"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
