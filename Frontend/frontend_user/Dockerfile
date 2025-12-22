@@ -7,6 +7,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm install && npm install toastify-js --save
 RUN npm install toastify-js --save
+RUN npm install react-icons
 
 COPY . .
 

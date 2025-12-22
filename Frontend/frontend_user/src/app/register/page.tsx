@@ -20,10 +20,14 @@ export default function RegisterPage() {
     }
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:8000/uporabnik/registracija", {
+      const res = await fetch("http://localhost:8002/uporabnik/registracija", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uporabnisko_ime: username, email, geslo: password }),
+        body: JSON.stringify({
+          uporabnisko_ime: username,
+          email,
+          geslo: password,
+        }),
       });
       if (!res.ok) {
         const data = await res.json();
