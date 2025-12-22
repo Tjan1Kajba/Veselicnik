@@ -1,4 +1,3 @@
-
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -19,14 +18,25 @@ export default function LoginPage() {
       const res = await fetch("http://localhost:8002/uporabnik/prijava", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uporabnisko_ime_ali_email: usernameOrEmail, geslo: password }),
+        body: JSON.stringify({
+          uporabnisko_ime_ali_email: usernameOrEmail,
+          geslo: password,
+        }),
         credentials: "include",
       });
       if (!res.ok) {
-        const data = await res.json();
-        const errorMsg = data.detail || data.message || "Login failed";
+        console.log("Login failed, status:", res.status);
+        let errorMsg = "Login failed";
+        try {
+          const data = await res.json();
+          console.log("Error response JSON:", data);
+          errorMsg = data.detail || data.message || errorMsg;
+        } catch (e) {
+          console.log("Failed to parse error JSON:", e);
+          // ignore JSON parse errors and use default message
+        }
+
         setError(errorMsg);
-        // JWT error handling (expired/invalid)
         if (
           errorMsg.toLowerCase().includes("jwt") ||
           errorMsg.toLowerCase().includes("token") ||
@@ -36,7 +46,25 @@ export default function LoginPage() {
           showToast(errorMsg, "error");
         }
       } else {
-        router.push("/");
+        console.log("Login success, about to parse JSON");
+        // Best-effort JSON parse; don't block redirect on failure
+        try {
+          const data = await res.json();
+          console.log("Success response JSON:", data);
+        } catch (e) {
+          console.log("Failed to parse success JSON:", e);
+        }
+        try {
+          console.log("Showing success toast");
+          showToast("Success", "success");
+        } catch (e) {
+          console.log("Toast failed:", e);
+          // even if toast fails, still redirect
+        }
+        console.log("Calling router.push('/uporabnik')");
+        // Use Next.js router for client-side navigation
+        router.push("/uporabnik");
+        console.log("router.push called");
       }
     } catch (err: any) {
       setError("Network error");

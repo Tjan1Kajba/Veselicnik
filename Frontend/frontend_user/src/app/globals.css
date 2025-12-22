@@ -54,6 +54,11 @@
   --color-gray: #dedcda;
 }
 
+
+
+
+
+
 html, body {
   min-height: 100vh;
   width: 100vw;
@@ -64,6 +69,7 @@ html, body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
 
 * {
   box-sizing: border-box;
@@ -279,3 +285,5 @@ p {
   font-size: 1rem;
   margin-top: 0.5rem;
 }
+
+

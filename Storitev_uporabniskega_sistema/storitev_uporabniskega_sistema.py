@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pymongo import MongoClient
 from passlib.context import CryptContext
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, field_validator, model_validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 from bson import ObjectId
@@ -105,7 +105,19 @@ app.openapi_tags = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+
+    allow_origins=["http://frontend_user:3000",
+                   "http://localhost:3000",
+                   "http://localhost:8000",
+                   "http://localhost:8001",
+                   "http://localhost:8002",
+                   "http://localhost:8003",
+                   "http://localhost:8004"
+                   
+                   ],
+
+
+
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -168,17 +180,12 @@ class SpremeniGeslo(BaseModel):
     novo_geslo: str
     ponovitev_novega_gesla: str
 
-    @field_validator('ponovitev_novega_gesla')
-    def gesli_se_ujemata(cls, v, values):
-        if 'novo_geslo' in values and v != values['novo_geslo']:
-            raise ValueError('Gesli se ne ujemata')
-        return v
-
     @field_validator('novo_geslo')
     def preveri_dolzino_gesla(cls, v):
         if len(v) < 4:
             raise ValueError('Geslo mora biti vsaj 4 znake dolgo')
         return v
+
 
 
 class RefreshTokenRequest(BaseModel):
