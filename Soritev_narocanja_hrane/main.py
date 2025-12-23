@@ -5,9 +5,10 @@ from datetime import datetime
 import jwt
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 import os
-
+import requests
 from models import Order, StatusUpdate, Payment, MenuItem
 from database import orders_collection, menu_collection
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 app = FastAPI(title="Food Ordering Microservice")
 
@@ -15,6 +16,7 @@ app = FastAPI(title="Food Ordering Microservice")
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production")
 JWT_ALGORITHM = "HS256"
 
+USER_SERVICE_URL = "http://host.docker.internal:8002"
 
 def preveri_jwt_token(token: str):
     try:
@@ -23,7 +25,8 @@ def preveri_jwt_token(token: str):
             JWT_SECRET_KEY,
             algorithms=[JWT_ALGORITHM],
             audience="api-clients",
-            issuer="uporabniski-sistem"
+            issuer="uporabniski-sistem",
+
         )
         return payload
     except ExpiredSignatureError:
@@ -32,12 +35,34 @@ def preveri_jwt_token(token: str):
         raise HTTPException(status_code=401, detail="Neveljaven token")
 
 
+def get_id_veselica_from_auth(access_token: str):
+
+    url = f"{USER_SERVICE_URL}/uporabnik/prijavljen"
+    headers = {"Authorization": f"Bearer {access_token}"}
+    response = requests.get(url, headers=headers)
+    if response.status_code != 200:
+        raise HTTPException(status_code=401, detail="Cannot fetch user info from Auth service")
+
+    data = response.json()
+    id_veselica = data["user"].get("id_veselica")
+    if not id_veselica:
+        raise HTTPException(status_code=400, detail="User is not registered to any veselica")
+    return id_veselica
+
+
+bearer_scheme = HTTPBearer()
+
+
 bearer_scheme = HTTPBearer()
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)
 ):
-    return preveri_jwt_token(credentials.credentials)
+    payload = preveri_jwt_token(credentials.credentials)
+    return {
+        "payload": payload,
+        "token": credentials.credentials
+    }
 
 
 def order_serializer(order) -> dict:
@@ -47,8 +72,9 @@ def order_serializer(order) -> dict:
         "items": order["items"],
         "status": order["status"],
         "paid": order["paid"],
-        "total_price": order.get("total_price", 0)
-    }
+        "total_price": order.get("total_price", 0),
+        "id_veselica": order.get("id_veselica") 
+                }
 
 
 @app.get("/menu")
@@ -73,11 +99,11 @@ def delete_menu_item(id: str, user_data: dict = Depends(get_current_user)):
 
 @app.post("/orders")
 def create_order(order: Order, user_data: dict = Depends(get_current_user)):
-    username = user_data["username"]
-    id_veselica = user_data.get("id_veselica")
+    access_token = user_data["token"]
+    payload = user_data["payload"]
 
-    if not id_veselica:
-        raise HTTPException(status_code=400, detail="User is not registered to any veselica")
+    username = payload.get("username")
+    id_veselica = get_id_veselica_from_auth(access_token)
 
     total_price = 0.0
     for item in order.items:
@@ -137,6 +163,7 @@ def pay_order(
     payment: Payment,
     user_data: dict = Depends(get_current_user)
 ):
+    id_veselica = user_data.get("id_veselica")
     order = orders_collection.find_one({"_id": ObjectId(id)})
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
@@ -154,7 +181,8 @@ def pay_order(
     return {
         "message": "Order paid",
         "total_price": order["total_price"],
-        "payment": payment.dict()
+        "payment": payment.dict(),
+        "id_veselica": id_veselica
     }
 
 @app.delete("/orders/{id}")
