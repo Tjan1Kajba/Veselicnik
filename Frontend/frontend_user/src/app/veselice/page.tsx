@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import AdminSidebar from "../components/AdminSidebar";
 import {
   FaUser,
   FaSignOutAlt,
@@ -284,51 +285,7 @@ const VeselicePage = () => {
   return (
     <div className="modern-dashboard">
       {/* Sidebar */}
-      <div className="modern-sidebar">
-        <div className="sidebar-header">
-          <div className="user-avatar">
-            <div className="avatar-icon">
-              <FaUser size={32} />
-            </div>
-          </div>
-          <div className="user-info">
-            <h3 className="username">
-              {user.uporabnisko_ime || user.username || user.email}
-            </h3>
-            <p className="user-email">{user.email}</p>
-          </div>
-        </div>
-
-        <nav className="sidebar-nav">
-          <button
-            className="nav-item"
-            onClick={() => router.push("/uporabnik")}
-          >
-            <span className="nav-icon">
-              <FaClipboardList size={20} />
-            </span>
-            <span className="nav-text">Profil</span>
-          </button>
-          <button
-            className="nav-item active"
-            onClick={() => router.push("/veselice")}
-          >
-            <span className="nav-icon">
-              <FaUsers size={20} />
-            </span>
-            <span className="nav-text">Veselice</span>
-          </button>
-        </nav>
-
-        <div className="sidebar-footer">
-          <button className="logout-button" onClick={handleLogout}>
-            <span className="logout-icon">
-              <FaSignOutAlt size={20} />
-            </span>
-            <span className="logout-text">Odjava</span>
-          </button>
-        </div>
-      </div>
+      <AdminSidebar user={user} handleLogout={handleLogout} activeItem="upravljanje" />
 
       {/* Main Content */}
       <div className="modern-main">

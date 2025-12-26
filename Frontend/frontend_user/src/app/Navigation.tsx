@@ -1,7 +1,8 @@
 "use client";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
+import AdminNavigation from "./components/AdminNavigation";
+import UserNavigation from "./components/UserNavigation";
 
 interface UserData {
   id: string;
@@ -72,15 +73,9 @@ export default function Navigation() {
     router.push("/login");
   };
 
-  return (
-    <nav style={{ display: "flex", gap: 16, marginBottom: 24 }}>
-      <Link href="/">Domov</Link>
-      <Link href="/uporabnik">Profil</Link>
-      {!loading && user && <Link href="/veselice-pregled">Veselice</Link>}
-      {!loading && user?.tip_uporabnika === "admin" && (
-        <Link href="/veselice">Upravljanje</Link>
-      )}
-      <button onClick={handleLogout}>Odjava</button>
-    </nav>
-  );
+  if (!loading && user?.tip_uporabnika === "admin") {
+    return <AdminNavigation handleLogout={handleLogout} />;
+  } else {
+    return <UserNavigation user={user} loading={loading} handleLogout={handleLogout} />;
+  }
 }
