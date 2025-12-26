@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.middleware.cors import CORSMiddleware
 from bson import ObjectId
 from datetime import datetime
 import jwt
@@ -11,6 +12,23 @@ from database import orders_collection, menu_collection
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 app = FastAPI(title="Food Ordering Microservice")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://frontend_user:3000",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8000",
+        "http://localhost:8001",
+        "http://localhost:8002",
+        "http://localhost:8003",
+        "http://localhost:8004",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production")

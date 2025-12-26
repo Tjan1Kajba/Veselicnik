@@ -3,8 +3,8 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import ChangePasswordForm from "./ChangePasswordForm";
 import UpdateUserForm from "./UpdateUserForm";
-import AdminSidebar from "../components/AdminSidebar";
-import UserSidebar from "../components/UserSidebar";
+import AdminSidebar from "../../components/AdminSidebar";
+import UserSidebar from "../../components/UserSidebar";
 import {
   FaUser,
   FaSignOutAlt,
@@ -20,24 +20,8 @@ import {
   FaTrash,
 } from "react-icons/fa";
 import "./dashboard.css";
-import { showToast } from "../utils/toast";
-
-interface UserData {
-  id: string;
-  username: string;
-  email: string;
-  tip_uporabnika?: string;
-  [key: string]: any;
-}
-
-interface UserResponse {
-  access_token?: string;
-  refresh_token?: string;
-  token_type?: string;
-  expires_in?: number;
-  user?: UserData;
-  [key: string]: any;
-}
+import { showToast } from "../../utils/toast";
+import { UserData, UserResponse } from "../../types";
 
 const UserProfile = () => {
   const [user, setUser] = useState<UserData | null>(null);

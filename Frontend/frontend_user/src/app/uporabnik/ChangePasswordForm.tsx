@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { showToast } from "../utils/toast";
+import { showToast } from "../../utils/toast";
 
 interface ChangePasswordFormProps {
   onSuccess: () => void;

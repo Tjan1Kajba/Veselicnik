@@ -8,22 +8,9 @@ import {
   FaClipboardList,
   FaUsers,
 } from "react-icons/fa";
+import { UserSidebarProps } from "../types";
 
-interface UserData {
-  id: string;
-  username: string;
-  email: string;
-  tip_uporabnika?: string;
-  [key: string]: any;
-}
-
-interface AdminSidebarProps {
-  user: UserData;
-  handleLogout: () => void;
-  activeItem?: 'profil' | 'veselice' | 'upravljanje';
-}
-
-export default function AdminSidebar({ user, handleLogout, activeItem = 'profil' }: AdminSidebarProps) {
+export default function UserSidebar({ user, handleLogout, activeItem = 'profil' }: UserSidebarProps) {
   return (
     <div className="modern-sidebar">
       <div className="sidebar-header">
@@ -52,12 +39,6 @@ export default function AdminSidebar({ user, handleLogout, activeItem = 'profil'
             <FaUsers size={20} />
           </span>
           <span className="nav-text">Veselice</span>
-        </Link>
-        <Link href="/veselice" className={`nav-item ${activeItem === 'upravljanje' ? 'active' : ''}`}>
-          <span className="nav-icon">
-            <FaUsers size={20} />
-          </span>
-          <span className="nav-text">Upravljanje</span>
         </Link>
       </nav>
 

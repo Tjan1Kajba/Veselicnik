@@ -1,25 +1,9 @@
 "use client";
 import { usePathname, useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
-import AdminNavigation from "./components/AdminNavigation";
-import UserNavigation from "./components/UserNavigation";
-
-interface UserData {
-  id: string;
-  username: string;
-  email: string;
-  tip_uporabnika?: string;
-  [key: string]: any;
-}
-
-interface UserResponse {
-  access_token?: string;
-  refresh_token?: string;
-  token_type?: string;
-  expires_in?: number;
-  user?: UserData;
-  [key: string]: any;
-}
+import AdminNavigation from "./AdminNavigation";
+import UserNavigation from "./UserNavigation";
+import { UserData, UserResponse } from "../types";
 
 export default function Navigation() {
   const pathname = usePathname();

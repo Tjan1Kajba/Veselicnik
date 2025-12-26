@@ -1,19 +1,6 @@
 import Link from "next/link";
 import React from "react";
-
-interface UserData {
-  id: string;
-  username: string;
-  email: string;
-  tip_uporabnika?: string;
-  [key: string]: any;
-}
-
-interface UserNavigationProps {
-  user: UserData | null;
-  loading: boolean;
-  handleLogout: () => void;
-}
+import { UserNavigationProps } from "../types";
 
 export default function UserNavigation({ user, loading, handleLogout }: UserNavigationProps) {
   return (
