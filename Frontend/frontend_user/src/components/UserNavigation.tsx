@@ -2,7 +2,7 @@ import Link from "next/link";
 import React from "react";
 import { UserNavigationProps } from "../types";
 
-export default function UserNavigation({ user, loading, handleLogout }: UserNavigationProps) {
+function UserNavigation({ user, loading, handleLogout }: UserNavigationProps) {
   return (
     <nav style={{ display: "flex", gap: 16, marginBottom: 24 }}>
       <Link href="/">Domov</Link>
@@ -12,3 +12,5 @@ export default function UserNavigation({ user, loading, handleLogout }: UserNavi
     </nav>
   );
 }
+
+export default UserNavigation;

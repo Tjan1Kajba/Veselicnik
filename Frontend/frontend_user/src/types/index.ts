@@ -41,6 +41,35 @@ export interface MenuItem {
   available: boolean;
 }
 
+export interface OrderItem {
+  item_id: string;
+  quantity: number;
+}
+
+export interface Order {
+  id: string;
+  user_id: string;
+  items: OrderItem[];
+  status: string;
+  paid: boolean;
+  total_price: number;
+  id_veselica?: string;
+}
+
+export interface CreateOrderRequest {
+  items: OrderItem[];
+}
+
+export interface PaymentRequest {
+  amount: number;
+  method: string;
+  transaction_id?: string;
+}
+
+export interface StatusUpdateRequest {
+  status: string;
+}
+
 export interface UserNavigationProps {
   user: UserData | null;
   loading: boolean;
@@ -58,9 +87,9 @@ export interface SidebarProps {
 }
 
 export interface AdminSidebarProps extends SidebarProps {
-  activeItem?: 'profil' | 'veselice' | 'upravljanje' | 'menu';
+  activeItem?: 'profil' | 'veselice' | 'upravljanje' | 'menu' | 'narocila';
 }
 
 export interface UserSidebarProps extends SidebarProps {
-  activeItem?: 'profil' | 'veselice';
+  activeItem?: 'profil' | 'veselice' | 'narocila';
 }

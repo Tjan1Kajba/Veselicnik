@@ -366,227 +366,212 @@ const VeselicePage = () => {
                 <div
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-                    gap: "1.5rem",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "2rem",
+                    alignItems: "start",
                   }}
                 >
-                  {/* Ime veselice */}
-                  <div className="input-group">
-                    <label className="input-label">
-                      Ime veselice{" "}
-                      <span style={{ color: "var(--color-error)" }}>*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.ime_veselice}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          ime_veselice: e.target.value,
-                        })
-                      }
-                      className="text-input"
-                      placeholder="npr. Novoletska zabava 2025"
-                      style={{ width: "100%" }}
-                    />
+                  {/* Left Column - Main Fields */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+                    {/* Ime veselice */}
+                    <div className="input-group">
+                      <label className="input-label">
+                        Ime veselice{" "}
+                        <span style={{ color: "var(--color-error)" }}>*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.ime_veselice}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            ime_veselice: e.target.value,
+                          })
+                        }
+                        className="text-input"
+                        placeholder="npr. Novoletska zabava 2025"
+                        style={{ width: "100%" }}
+                      />
+                    </div>
+
+                    {/* Datum in ura */}
+                    <div className="input-group">
+                      <label className="input-label">
+                        Datum in ura{" "}
+                        <span style={{ color: "var(--color-error)" }}>*</span>
+                      </label>
+                      <input
+                        type="datetime-local"
+                        required
+                        value={formData.cas}
+                        onChange={(e) =>
+                          setFormData({ ...formData, cas: e.target.value })
+                        }
+                        className="text-input"
+                        style={{ width: "100%" }}
+                      />
+                    </div>
+
+                    {/* Lokacija */}
+                    <div className="input-group">
+                      <label className="input-label">
+                        Lokacija{" "}
+                        <span style={{ color: "var(--color-error)" }}>*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.lokacija}
+                        onChange={(e) =>
+                          setFormData({ ...formData, lokacija: e.target.value })
+                        }
+                        className="text-input"
+                        placeholder="npr. Ljubljana, Kongresni trg 1"
+                        style={{ width: "100%" }}
+                      />
+                    </div>
+
+                    {/* Maksimalno število prijavljenih */}
+                    <div className="input-group">
+                      <label className="input-label">
+                        Maksimalno število prijavljenih
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.max_udelezencev}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            max_udelezencev: parseInt(e.target.value) || 0,
+                          })
+                        }
+                        className="text-input"
+                        placeholder="0 = brez omejitve"
+                        style={{ width: "100%" }}
+                      />
+
+                    </div>
+
+                    {/* Minimalna starost */}
+                    <div className="input-group">
+                      <label className="input-label">
+                        Minimalna starost za vstop
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.starost_za_vstop}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            starost_za_vstop: parseInt(e.target.value) || 18,
+                          })
+                        }
+                        className="text-input"
+                        style={{ width: "100%" }}
+                      />
+                    </div>
                   </div>
 
-                  {/* Datum in ura */}
-                  <div className="input-group">
-                    <label className="input-label">
-                      Datum in ura{" "}
-                      <span style={{ color: "var(--color-error)" }}>*</span>
-                    </label>
-                    <input
-                      type="datetime-local"
-                      required
-                      value={formData.cas}
-                      onChange={(e) =>
-                        setFormData({ ...formData, cas: e.target.value })
-                      }
-                      className="text-input"
-                      style={{ width: "100%" }}
-                    />
-                  </div>
+                  {/* Right Column - Description and Buttons */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", justifyContent: "space-between", height: "100%" }}>
+                    {/* Opis dogodka */}
+                    <div className="input-group" style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+                      <label className="input-label">Opis dogodka</label>
+                      <textarea
+                        value={formData.opis_dogodka}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            opis_dogodka: e.target.value,
+                          })
+                        }
+                        className="text-input"
+                        placeholder="Dodajte opis dogodka, temo, posebnosti..."
+                        style={{
+                          width: "100%",
+                          resize: "vertical",
+                          fontFamily: "inherit",
+                          flex: 1,
+                          minHeight: "200px",
+                        }}
+                      />
+                    </div>
 
-                  {/* Lokacija */}
-                  <div className="input-group" style={{ gridColumn: "1 / -1" }}>
-                    <label className="input-label">
-                      Lokacija{" "}
-                      <span style={{ color: "var(--color-error)" }}>*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.lokacija}
-                      onChange={(e) =>
-                        setFormData({ ...formData, lokacija: e.target.value })
-                      }
-                      className="text-input"
-                      placeholder="npr. Ljubljana, Kongresni trg 1"
-                      style={{ width: "100%" }}
-                    />
+                    {/* Buttons */}
+                    <div style={{ display: "flex", gap: "1rem" }}>
+                      <button
+                        type="submit"
+                        disabled={creating}
+                        className="modern-button primary"
+                        style={{
+                          flex: 1,
+                          padding: "1rem 2rem",
+                          fontSize: "1rem",
+                          fontWeight: 600,
+                          height: "48px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "0.5rem",
+                        }}
+                      >
+                        {creating ? (
+                          <>
+                            <span
+                              style={{
+                                display: "inline-block",
+                                width: "16px",
+                                height: "16px",
+                                border: "2px solid white",
+                                borderTopColor: "transparent",
+                                borderRadius: "50%",
+                                animation: "spin 0.6s linear infinite",
+                              }}
+                            />
+                            Ustvarjam...
+                          </>
+                        ) : (
+                          <>
+                            <FaPlus size={16} />
+                            Ustvari veselico
+                          </>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowCreateForm(false)}
+                        style={{
+                          flex: 1,
+                          padding: "1rem 2rem",
+                          marginTop: "8px",
+                          fontSize: "1rem",
+                          fontWeight: 600,
+                          background: "var(--color-input-bg)",
+                          color: "var(--color-text)",
+                          border: "2px solid var(--color-border)",
+                          borderRadius: "8px",
+                          cursor: "pointer",
+                          transition: "all 0.2s",
+                          height: "48px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = "var(--color-border)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background =
+                            "var(--color-input-bg)";
+                        }}
+                      >
+                        Prekliči
+                      </button>
+                    </div>
                   </div>
-
-                  {/* Maksimalno število prijavljenih */}
-                  <div className="input-group">
-                    <label className="input-label">
-                      Maksimalno število prijavljenih
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={formData.max_udelezencev}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          max_udelezencev: parseInt(e.target.value) || 0,
-                        })
-                      }
-                      className="text-input"
-                      placeholder="0 = brez omejitve"
-                      style={{ width: "100%" }}
-                    />
-                    <p
-                      style={{
-                        fontSize: "0.75rem",
-                        color: "var(--color-text-light)",
-                        margin: "0.25rem 0 0 0",
-                      }}
-                    >
-                      Pustite 0 za neomejeno število prijavljenih
-                    </p>
-                  </div>
-
-                  {/* Minimalna starost */}
-                  <div className="input-group">
-                    <label className="input-label">
-                      Minimalna starost za vstop
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={formData.starost_za_vstop}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          starost_za_vstop: parseInt(e.target.value) || 18,
-                        })
-                      }
-                      className="text-input"
-                      style={{ width: "100%" }}
-                    />
-                    <p
-                      style={{
-                        fontSize: "0.75rem",
-                        color: "var(--color-text-light)",
-                        margin: "0.25rem 0 0 0",
-                      }}
-                    >
-                      Privzeta starost: 18 let
-                    </p>
-                  </div>
-
-                  {/* Opis dogodka */}
-                  <div className="input-group" style={{ gridColumn: "1 / -1" }}>
-                    <label className="input-label">Opis dogodka</label>
-                    <textarea
-                      value={formData.opis_dogodka}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          opis_dogodka: e.target.value,
-                        })
-                      }
-                      className="text-input"
-                      rows={5}
-                      placeholder="Dodajte opis dogodka, temo, posebnosti..."
-                      style={{
-                        width: "100%",
-                        resize: "vertical",
-                        fontFamily: "inherit",
-                      }}
-                    />
-                    <p
-                      style={{
-                        fontSize: "0.75rem",
-                        color: "var(--color-text-light)",
-                        margin: "0.25rem 0 0 0",
-                      }}
-                    >
-                      Opcijsko polje za dodatne informacije o veselici
-                    </p>
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "1rem",
-                    marginTop: "2rem",
-                    paddingTop: "1.5rem",
-                    borderTop: "2px solid var(--color-border)",
-                  }}
-                >
-                  <button
-                    type="submit"
-                    disabled={creating}
-                    className="modern-button primary"
-                    style={{
-                      flex: 1,
-                      padding: "1rem 2rem",
-                      fontSize: "1rem",
-                      fontWeight: 600,
-                    }}
-                  >
-                    {creating ? (
-                      <>
-                        <span
-                          style={{
-                            display: "inline-block",
-                            width: "16px",
-                            height: "16px",
-                            border: "2px solid white",
-                            borderTopColor: "transparent",
-                            borderRadius: "50%",
-                            animation: "spin 0.6s linear infinite",
-                          }}
-                        />
-                        Ustvarjam...
-                      </>
-                    ) : (
-                      <>
-                        <FaPlus size={16} />
-                        Ustvari veselico
-                      </>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowCreateForm(false)}
-                    style={{
-                      flex: 1,
-                      padding: "1rem 2rem",
-                      fontSize: "1rem",
-                      fontWeight: 600,
-                      background: "var(--color-input-bg)",
-                      color: "var(--color-text)",
-                      border: "2px solid var(--color-border)",
-                      borderRadius: "8px",
-                      cursor: "pointer",
-                      transition: "all 0.2s",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "var(--color-border)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background =
-                        "var(--color-input-bg)";
-                    }}
-                  >
-                    Prekliči
-                  </button>
                 </div>
               </form>
             </div>

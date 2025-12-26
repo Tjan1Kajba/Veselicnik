@@ -7,6 +7,7 @@ import {
   FaEnvelope,
   FaClipboardList,
   FaUsers,
+  FaShoppingCart,
 } from "react-icons/fa";
 import { UserSidebarProps } from "../types";
 
@@ -39,6 +40,12 @@ export default function UserSidebar({ user, handleLogout, activeItem = 'profil' 
             <FaUsers size={20} />
           </span>
           <span className="nav-text">Veselice</span>
+        </Link>
+        <Link href="/narocila" className={`nav-item ${activeItem === 'narocila' ? 'active' : ''}`}>
+          <span className="nav-icon">
+            <FaShoppingCart size={20} />
+          </span>
+          <span className="nav-text">Naročila</span>
         </Link>
       </nav>
 

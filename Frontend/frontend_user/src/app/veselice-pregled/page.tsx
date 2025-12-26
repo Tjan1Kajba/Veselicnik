@@ -179,13 +179,14 @@ const VeselicePregledPage = () => {
         <div className="main-content">
           {/* Veselice List */}
           <div className="profile-card">
-            <div className="card-header">
-              <h2 className="card-title">
+            <div className="section-header">
+              <h2 className="section-title">
                 <span className="title-icon">
                   <FaUsersIcon size={20} />
                 </span>
                 Seznam veselic
               </h2>
+              <span className="section-badge">Pregled</span>
             </div>
 
             {loadingVeselice ? (

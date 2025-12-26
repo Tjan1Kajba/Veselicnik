@@ -14,10 +14,14 @@ import {
   FaArrowLeft,
   FaCheckCircle,
   FaTimesCircle,
+  FaUtensils,
+  FaPlus,
+  FaMinus,
+  FaShoppingCart,
 } from "react-icons/fa";
 import "../../uporabnik/dashboard.css";
 import { showToast } from "../../../utils/toast";
-import { UserData, UserResponse, Veselica } from "../../../types";
+import { UserData, UserResponse, Veselica, MenuItem, OrderItem, CreateOrderRequest, Order } from "../../../types";
 
 const VeselicaDetailPage = () => {
   const params = useParams();
@@ -25,12 +29,19 @@ const VeselicaDetailPage = () => {
   const veselicaId = params.id as string;
 
   const [user, setUser] = useState<UserData | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [veselica, setVeselica] = useState<Veselica | null>(null);
   const [loadingVeselica, setLoadingVeselica] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [isUnregistering, setIsUnregistering] = useState(false);
+
+  // Food ordering state
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [selectedItems, setSelectedItems] = useState<{ [key: string]: number }>({});
+  const [loadingMenu, setLoadingMenu] = useState(false);
+  const [creatingOrder, setCreatingOrder] = useState(false);
 
   const fetchUser = () => {
     setLoading(true);
@@ -58,6 +69,7 @@ const VeselicaDetailPage = () => {
         }
 
         setUser(userData);
+        setAccessToken(data.access_token || null);
       })
       .catch((err) => {
         setError(err.message);
@@ -74,6 +86,7 @@ const VeselicaDetailPage = () => {
   useEffect(() => {
     if (user && veselicaId) {
       fetchVeselica();
+      fetchMenuItems();
     }
   }, [user, veselicaId]);
 
@@ -201,6 +214,118 @@ const VeselicaDetailPage = () => {
     if (max === 0) return false; // No limit
     const current = veselica.prijavljeni_uporabniki?.length || 0;
     return max > 0 && current >= max;
+  };
+
+  const fetchMenuItems = async () => {
+    setLoadingMenu(true);
+    try {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
+      }
+
+      const res = await fetch("http://localhost:8001/menu", {
+        method: "GET",
+        headers,
+        credentials: "include",
+      });
+      if (!res.ok) {
+        throw new Error("Neuspešno pridobivanje menija.");
+      }
+      const data: MenuItem[] = await res.json();
+      setMenuItems(data.filter(item => item.available)); // Only show available items
+    } catch (err: any) {
+      const errorMessage = err.message || err.detail || err.error || "Napaka pri pridobivanju menija.";
+      showToast(typeof errorMessage === 'string' ? errorMessage : "Napaka pri pridobivanju menija.", "error");
+    } finally {
+      setLoadingMenu(false);
+    }
+  };
+
+  const addToOrder = (itemId: string) => {
+    setSelectedItems(prev => ({
+      ...prev,
+      [itemId]: (prev[itemId] || 0) + 1
+    }));
+  };
+
+  const removeFromOrder = (itemId: string) => {
+    setSelectedItems(prev => {
+      const newQuantity = (prev[itemId] || 0) - 1;
+      if (newQuantity <= 0) {
+        const { [itemId]: _, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [itemId]: newQuantity };
+    });
+  };
+
+  const getTotalItems = () => {
+    return Object.values(selectedItems).reduce((sum, qty) => sum + qty, 0);
+  };
+
+  const getTotalPrice = () => {
+    return Object.entries(selectedItems).reduce((total, [itemId, quantity]) => {
+      const item = menuItems.find(m => m._id === itemId);
+      return total + (item ? item.price * quantity : 0);
+    }, 0);
+  };
+
+  const handleCreateOrder = async () => {
+    if (Object.keys(selectedItems).length === 0) {
+      showToast("Izberite vsaj eno jed za naročilo.", "error");
+      return;
+    }
+
+    setCreatingOrder(true);
+    try {
+      const items: OrderItem[] = Object.entries(selectedItems).map(([itemId, quantity]) => {
+        const menuItem = menuItems.find(item => item._id === itemId);
+        return {
+          item_id: menuItem ? menuItem.name : itemId, // Send name instead of _id
+          quantity
+        };
+      });
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
+      }
+
+      const res = await fetch("http://localhost:8001/orders", {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({
+          user_id: "temp", // Will be overridden by backend
+          items,
+          status: "created",
+          paid: false
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        const errorMessage = errorData.detail || errorData.message || errorData.error || "Napaka pri ustvarjanju naročila.";
+        throw new Error(typeof errorMessage === 'string' ? errorMessage : "Napaka pri ustvarjanju naročila.");
+      }
+
+      const data = await res.json();
+      showToast("Naročilo uspešno ustvarjeno!", "success");
+      setSelectedItems({});
+      // Optionally redirect to orders page
+      router.push("/narocila");
+    } catch (err: any) {
+      showToast(err.message || "Napaka pri ustvarjanju naročila.", "error");
+    } finally {
+      setCreatingOrder(false);
+    }
   };
 
   if (loading || loadingVeselica)
@@ -831,6 +956,346 @@ const VeselicaDetailPage = () => {
               </div>
             )}
 
+            {/* Food Ordering Section */}
+            {registered && (
+              <div
+                style={{
+                  padding: "1.5rem",
+                  background: "var(--color-input-bg)",
+                  borderRadius: "12px",
+                  marginBottom: "2rem",
+                }}
+              >
+                <h3
+                  style={{
+                    fontSize: "1.125rem",
+                    fontWeight: 600,
+                    margin: "0 0 1rem 0",
+                    color: "var(--color-text)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <FaUtensils size={20} />
+                  Naroči hrano
+                </h3>
+
+                {loadingMenu ? (
+                  <div style={{ textAlign: "center", padding: "2rem" }}>
+                    <p>Nalagam meni...</p>
+                  </div>
+                ) : menuItems.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "2rem" }}>
+                    <p style={{ color: "var(--color-text-light)" }}>
+                      Trenutno ni jedi na voljo za naročilo.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Menu Items */}
+                    <div
+                      style={{
+                        display: "grid",
+                        gap: "1.5rem",
+                        marginBottom: "2rem",
+                        gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+                      }}
+                    >
+                      {menuItems.map((item) => {
+                        const quantity = selectedItems[item._id] || 0;
+                        return (
+                          <div
+                            key={item._id}
+                            style={{
+                              background: "var(--color-bg)",
+                              borderRadius: "12px",
+                              padding: "1.5rem",
+                              border: "1px solid var(--color-border)",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "1rem",
+                              minHeight: "200px",
+                              transition: "all 0.2s ease",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.transform = "translateY(-2px)";
+                              e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.1)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform = "none";
+                              e.currentTarget.style.boxShadow = "none";
+                            }}
+                          >
+                            <div style={{ flex: 1 }}>
+                              <h4
+                                style={{
+                                  fontSize: "1.125rem",
+                                  fontWeight: 600,
+                                  margin: "0 0 0.75rem 0",
+                                  color: "var(--color-text)",
+                                }}
+                              >
+                                {item.name}
+                              </h4>
+                              {item.description && (
+                                <p
+                                  style={{
+                                    fontSize: "0.875rem",
+                                    color: "var(--color-text-light)",
+                                    margin: "0 0 1rem 0",
+                                    lineHeight: 1.5,
+                                  }}
+                                >
+                                  {item.description}
+                                </p>
+                              )}
+                            </div>
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                gap: "1rem",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  fontSize: "1.25rem",
+                                  fontWeight: 700,
+                                  color: "var(--color-primary)",
+                                }}
+                              >
+                                €{item.price.toFixed(2)}
+                              </div>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "0.75rem",
+                                }}
+                              >
+                                <button
+                                  onClick={() => removeFromOrder(item._id)}
+                                  disabled={quantity === 0}
+                                  style={{
+                                    width: "36px",
+                                    height: "36px",
+                                    borderRadius: "8px",
+                                    border: "1px solid var(--color-border)",
+                                    background: quantity === 0 ? "var(--color-input-bg)" : "var(--color-error)",
+                                    color: quantity === 0 ? "var(--color-text-light)" : "white",
+                                    cursor: quantity === 0 ? "not-allowed" : "pointer",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    fontSize: "1rem",
+                                    fontWeight: 600,
+                                    transition: "all 0.2s ease",
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    if (quantity > 0) {
+                                      e.currentTarget.style.background = "#d32f2f";
+                                    }
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    if (quantity > 0) {
+                                      e.currentTarget.style.background = "var(--color-error)";
+                                    }
+                                  }}
+                                >
+                                  <FaMinus size={14} />
+                                </button>
+                                <span
+                                  style={{
+                                    fontSize: "1.125rem",
+                                    fontWeight: 600,
+                                    minWidth: "32px",
+                                    textAlign: "center",
+                                    color: "var(--color-text)",
+                                  }}
+                                >
+                                  {quantity}
+                                </span>
+                                <button
+                                  onClick={() => addToOrder(item._id)}
+                                  style={{
+                                    width: "36px",
+                                    height: "36px",
+                                    borderRadius: "8px",
+                                    border: "1px solid var(--color-border)",
+                                    background: "var(--color-primary)",
+                                    color: "white",
+                                    cursor: "pointer",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    fontSize: "1rem",
+                                    fontWeight: 600,
+                                    transition: "all 0.2s ease",
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = "var(--color-primary-dark)";
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = "var(--color-primary)";
+                                  }}
+                                >
+                                  <FaPlus size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Order Summary */}
+                    {getTotalItems() > 0 && (
+                      <div
+                        style={{
+                          background: "var(--color-bg)",
+                          borderRadius: "12px",
+                          padding: "1.5rem",
+                          border: "1px solid var(--color-border)",
+                          marginBottom: "1.5rem",
+                        }}
+                      >
+                        <h4
+                          style={{
+                            fontSize: "1rem",
+                            fontWeight: 600,
+                            margin: "0 0 1rem 0",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.5rem",
+                          }}
+                        >
+                          <FaShoppingCart size={16} />
+                          Povzetek naročila
+                        </h4>
+                        <div style={{ marginBottom: "1rem" }}>
+                          {Object.entries(selectedItems).map(([itemId, quantity]) => {
+                            const item = menuItems.find(m => m._id === itemId);
+                            if (!item) return null;
+                            return (
+                              <div
+                                key={itemId}
+                                style={{
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  alignItems: "center",
+                                  padding: "0.5rem 0",
+                                  borderBottom: "1px solid var(--color-border)",
+                                }}
+                              >
+                                <span style={{ fontSize: "0.875rem" }}>
+                                  {item.name} × {quantity}
+                                </span>
+                                <span style={{ fontSize: "0.875rem", fontWeight: 600 }}>
+                                  €{(item.price * quantity).toFixed(2)}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            padding: "0.75rem 0",
+                            borderTop: "2px solid var(--color-border)",
+                            fontSize: "1rem",
+                            fontWeight: 600,
+                          }}
+                        >
+                          <span>Skupaj:</span>
+                          <span>€{getTotalPrice().toFixed(2)}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Order Button */}
+                    {getTotalItems() > 0 && (
+                      <div style={{ display: "flex", gap: "1rem", justifyContent: "right" }}>
+                        <button
+                          onClick={() => {
+                            setSelectedItems({});
+                          }}
+                          style={{
+                            flex: 1,
+                            maxWidth: "200px",
+                            padding: "1rem 2rem",
+                            fontSize: "1rem",
+                            fontWeight: 600,
+                            background: "var(--color-input-bg)",
+                            color: "var(--color-text)",
+                            border: "2px solid var(--color-border)",
+                            borderRadius: "8px",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "0.5rem",
+                            height: "48px",
+                            transition: "all 0.2s",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = "var(--color-border)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "var(--color-input-bg)";
+                          }}
+                        >
+                          Prekliči
+                        </button>
+                        <button
+                          onClick={handleCreateOrder}
+                          disabled={creatingOrder}
+                          className="modern-button primary"
+                          style={{
+                            flex: 1,
+                            maxWidth: "300px",
+                            padding: "1rem 2rem",
+                            fontSize: "1rem",
+                            fontWeight: 600,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "0.5rem",
+                            height: "48px",
+                          }}
+                        >
+                          {creatingOrder ? (
+                            <>
+                              <span
+                                style={{
+                                  display: "inline-block",
+                                  width: "16px",
+                                  height: "16px",
+                                  border: "2px solid white",
+                                  borderTopColor: "transparent",
+                                  borderRadius: "50%",
+                                  animation: "spin 0.6s linear infinite",
+                                }}
+                              />
+                              Ustvarjam naročilo...
+                            </>
+                          ) : (
+                            <>
+                              <FaShoppingCart size={16} />
+                              Oddaj naročilo (€{getTotalPrice().toFixed(2)})
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
             {/* Action buttons */}
             <div
               style={{
@@ -840,6 +1305,36 @@ const VeselicaDetailPage = () => {
                 borderTop: "2px solid var(--color-border)",
               }}
             >
+              <button
+                onClick={() => router.push("/veselice-pregled")}
+                style={{
+                  flex: 1,
+                  padding: "1rem 2rem",
+                  fontSize: "1rem",
+                  fontWeight: 600,
+                  background: "var(--color-input-bg)",
+                  color: "var(--color-text)",
+                  border: "2px solid var(--color-border)",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "0.5rem",
+                  height: "48px",
+                  transition: "all 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "var(--color-border)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "var(--color-input-bg)";
+                }}
+              >
+                <FaArrowLeft size={16} />
+                Nazaj na seznam
+              </button>
+
               {registered ? (
                 <button
                   onClick={handleUnregister}
@@ -856,6 +1351,7 @@ const VeselicaDetailPage = () => {
                     alignItems: "center",
                     justifyContent: "center",
                     gap: "0.5rem",
+                    height: "48px",
                   }}
                 >
                   {isUnregistering ? (
@@ -896,6 +1392,7 @@ const VeselicaDetailPage = () => {
                     gap: "0.5rem",
                     opacity: full ? 0.6 : 1,
                     cursor: full ? "not-allowed" : "pointer",
+                    height: "48px",
                   }}
                 >
                   {isRegistering ? (

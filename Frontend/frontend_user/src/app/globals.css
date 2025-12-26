@@ -44,7 +44,7 @@
   --color-black: #111;
   --color-white: #fff;
   --color-error: #d32f2f;
-  --color-border: #e0e0e0;
+  --color-border: #333;
   --color-input-bg: #f7f6f5;
   --color-input-border: #cfcfcf;
   --color-link: #ed8458;
@@ -194,6 +194,7 @@ a:hover {
 .split-section .right main {
   background: var(--color-white);
   border-radius: 18px;
+  border: 1px solid #333;
   box-shadow: 0 2px 16px 0 rgba(0, 0, 0, 0.1);
   padding: 2.5rem 2rem;
   margin: 0;
@@ -231,7 +232,7 @@ input[type="email"],
 input[type="password"] {
   padding: 0.7rem 1rem;
   border-radius: 8px;
-  border: 1.5px solid var(--color-input-border);
+  border: 1px solid #333;
   background: var(--color-input-bg);
   font-size: 1rem;
   color: var(--color-black);
@@ -241,13 +242,13 @@ input[type="password"] {
 input[type="text"]:focus,
 input[type="email"]:focus,
 input[type="password"]:focus {
-  border: 1.5px solid var(--color-primary);
+  border: 1px solid var(--color-primary);
 }
 
 button[type="submit"] {
   background: var(--color-primary);
   color: var(--color-white);
-  border: none;
+  border: 1px solid #333;
   border-radius: 8px;
   padding: 0.8rem 0;
   font-size: 1.1rem;
@@ -255,7 +256,6 @@ button[type="submit"] {
   cursor: pointer;
   margin-top: 0.5rem;
   transition: background 0.2s;
-  border: 2px solid black;
 }
 button[type="submit"]:hover:not(:disabled) {
   background: var(--color-link-hover);

@@ -321,33 +321,6 @@ const MenuPage = () => {
                     </p>
                   </div>
                 </div>
-                <button
-                  onClick={() => setShowCreateForm(false)}
-                  style={{
-                    background: "transparent",
-                    border: "none",
-                    fontSize: "1.75rem",
-                    cursor: "pointer",
-                    color: "var(--color-text-light)",
-                    width: "36px",
-                    height: "36px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    borderRadius: "8px",
-                    transition: "all 0.2s",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "var(--color-input-bg)";
-                    e.currentTarget.style.color = "var(--color-text)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "transparent";
-                    e.currentTarget.style.color = "var(--color-text-light)";
-                  }}
-                >
-                  ×
-                </button>
               </div>
 
               <form
@@ -357,162 +330,182 @@ const MenuPage = () => {
                 <div
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-                    gap: "1.5rem",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "2rem",
+                    alignItems: "start",
                   }}
                 >
-                  {/* Ime jedi */}
-                  <div className="input-group">
-                    <label className="input-label">
-                      Ime jedi{" "}
-                      <span style={{ color: "var(--color-error)" }}>*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.name}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          name: e.target.value,
-                        })
-                      }
-                      className="text-input"
-                      placeholder="npr. Pizza Margherita"
-                      style={{ width: "100%" }}
-                    />
-                  </div>
-
-                  {/* Cena */}
-                  <div className="input-group">
-                    <label className="input-label">
-                      Cena (€){" "}
-                      <span style={{ color: "var(--color-error)" }}>*</span>
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      required
-                      value={formData.price}
-                      onChange={(e) =>
-                        setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })
-                      }
-                      className="text-input"
-                      placeholder="0.00"
-                      style={{ width: "100%" }}
-                    />
-                  </div>
-
-                  {/* Opis */}
-                  <div className="input-group" style={{ gridColumn: "1 / -1" }}>
-                    <label className="input-label">Opis jedi</label>
-                    <textarea
-                      value={formData.description}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          description: e.target.value,
-                        })
-                      }
-                      className="text-input"
-                      rows={3}
-                      placeholder="Dodajte opis jedi..."
-                      style={{
-                        width: "100%",
-                        resize: "vertical",
-                        fontFamily: "inherit",
-                      }}
-                    />
-                  </div>
-
-                  {/* Na voljo */}
-                  <div className="input-group">
-                    <label className="input-label">Na voljo</label>
-                    <label style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  {/* Left Column - Main Fields */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+                    {/* Ime jedi */}
+                    <div className="input-group">
+                      <label className="input-label">
+                        Ime jedi{" "}
+                        <span style={{ color: "var(--color-error)" }}>*</span>
+                      </label>
                       <input
-                        type="checkbox"
-                        checked={formData.available}
+                        type="text"
+                        required
+                        value={formData.name}
                         onChange={(e) =>
                           setFormData({
                             ...formData,
-                            available: e.target.checked,
+                            name: e.target.value,
                           })
                         }
-                        style={{ width: "18px", height: "18px" }}
+                        className="text-input"
+                        placeholder="npr. Pizza Margherita"
+                        style={{ width: "100%" }}
                       />
-                      <span>Jed je na voljo za naročilo</span>
-                    </label>
-                  </div>
-                </div>
+                    </div>
 
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "1rem",
-                    marginTop: "2rem",
-                    paddingTop: "1.5rem",
-                    borderTop: "2px solid var(--color-border)",
-                  }}
-                >
-                  <button
-                    type="submit"
-                    disabled={creating}
-                    className="modern-button primary"
-                    style={{
-                      flex: 1,
-                      padding: "1rem 2rem",
-                      fontSize: "1rem",
-                      fontWeight: 600,
-                    }}
-                  >
-                    {creating ? (
-                      <>
-                        <span
-                          style={{
-                            display: "inline-block",
-                            width: "16px",
-                            height: "16px",
-                            border: "2px solid white",
-                            borderTopColor: "transparent",
-                            borderRadius: "50%",
-                            animation: "spin 0.6s linear infinite",
-                          }}
+                    {/* Cena */}
+                    <div className="input-group">
+                      <label className="input-label">
+                        Cena (€){" "}
+                        <span style={{ color: "var(--color-error)" }}>*</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        required
+                        value={formData.price}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            price: parseFloat(e.target.value) || 0,
+                          })
+                        }
+                        className="text-input"
+                        placeholder="0.00"
+                        style={{ width: "100%" }}
+                      />
+                    </div>
+
+                    {/* Na voljo */}
+                    <div className="input-group">
+                      <label className="input-label">Na voljo</label>
+                      <label
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.5rem",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={formData.available}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              available: e.target.checked,
+                            })
+                          }
+                          style={{ width: "18px", height: "18px" }}
                         />
-                        Dodajam...
-                      </>
-                    ) : (
-                      <>
-                        <FaPlus size={16} />
-                        Dodaj jed
-                      </>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowCreateForm(false)}
-                    style={{
-                      flex: 1,
-                      padding: "1rem 2rem",
-                      fontSize: "1rem",
-                      fontWeight: 600,
-                      background: "var(--color-input-bg)",
-                      color: "var(--color-text)",
-                      border: "2px solid var(--color-border)",
-                      borderRadius: "8px",
-                      cursor: "pointer",
-                      transition: "all 0.2s",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "var(--color-border)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background =
-                        "var(--color-input-bg)";
-                    }}
-                  >
-                    Prekliči
-                  </button>
+                        <span>Jed je na voljo za naročilo</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Right Column - Description and Buttons */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", justifyContent: "space-between", height: "100%" }}>
+                    {/* Opis */}
+                    <div className="input-group" style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+                      <label className="input-label">Opis jedi</label>
+                      <textarea
+                        value={formData.description}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            description: e.target.value,
+                          })
+                        }
+                        className="text-input"
+                        placeholder="Dodajte opis jedi..."
+                        style={{
+                          width: "100%",
+                          resize: "vertical",
+                          fontFamily: "inherit",
+                          flex: 1,
+                          minHeight: "150px",
+                        }}
+                      />
+                    </div>
+
+                    {/* Buttons */}
+                    <div style={{ display: "flex", gap: "1rem" }}>
+                      <button
+                        type="submit"
+                        disabled={creating}
+                        className="modern-button primary"
+                        style={{
+                          flex: 1,
+                          padding: "1rem 2rem",
+                          fontSize: "1rem",
+                          fontWeight: 600,
+                          height: "48px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "0.5rem",
+                        }}
+                      >
+                        {creating ? (
+                          <>
+                            <span
+                              style={{
+                                display: "inline-block",
+                                width: "16px",
+                                height: "16px",
+                                border: "2px solid white",
+                                borderTopColor: "transparent",
+                                borderRadius: "50%",
+                                animation: "spin 0.6s linear infinite",
+                              }}
+                            />
+                            Dodajam...
+                          </>
+                        ) : (
+                          <>
+                            <FaPlus size={16} />
+                            Dodaj jed
+                          </>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowCreateForm(false)}
+                        style={{
+                          flex: 1,
+                          padding: "1rem 2rem",
+                          marginTop: "8px",
+                          fontSize: "1rem",
+                          fontWeight: 600,
+                          background: "var(--color-input-bg)",
+                          color: "var(--color-text)",
+                          border: "2px solid var(--color-border)",
+                          borderRadius: "8px",
+                          cursor: "pointer",
+                          transition: "all 0.2s",
+                          height: "48px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = "var(--color-border)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background =
+                            "var(--color-input-bg)";
+                        }}
+                      >
+                        Prekliči
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </form>
             </div>
@@ -717,7 +710,9 @@ const MenuPage = () => {
                         >
                           <span
                             style={{
-                              color: item.available ? "var(--color-success)" : "var(--color-error)",
+                              color: item.available
+                                ? "var(--color-success)"
+                                : "var(--color-error)",
                               fontSize: "0.875rem",
                               fontWeight: 600,
                             }}

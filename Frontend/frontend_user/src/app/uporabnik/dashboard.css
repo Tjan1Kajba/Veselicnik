@@ -17,6 +17,7 @@
   color: var(--color-black);
   background: rgba(255, 255, 255, 0.7);
   border-radius: 10px;
+  border: 1px solid black;
   box-shadow: 0 1px 6px 0 rgba(0, 0, 0, 0.04);
   padding: 0.7rem 1.2rem;
   transition: box-shadow 0.18s;
@@ -44,7 +45,7 @@
   --color-black: #111;
   --color-white: #fff;
   --color-error: #d32f2f;
-  --color-border: #e0e0e0;
+  --color-border: #333;
   --color-input-bg: #f7f6f5;
   --color-input-border: #cfcfcf;
   --color-link: #ed8458;
@@ -194,6 +195,7 @@ a:hover {
 .split-section .right main {
   background: var(--color-white);
   border-radius: 18px;
+  border: 1px solid black;
   box-shadow: 0 2px 16px 0 rgba(0, 0, 0, 0.1);
   padding: 2.5rem 2rem;
   margin: 0;
@@ -234,7 +236,7 @@ input[type="datetime-local"],
 textarea {
   padding: 0.7rem 1rem;
   border-radius: 8px;
-  border: 1.5px solid var(--color-input-border);
+  border: 1px solid black;
   background: var(--color-input-bg);
   font-size: 1rem;
   color: var(--color-black);
@@ -248,7 +250,7 @@ input[type="password"]:focus,
 input[type="number"]:focus,
 input[type="datetime-local"]:focus,
 textarea:focus {
-  border: 1.5px solid var(--color-primary);
+  border: 1px solid var(--color-primary);
   box-shadow: 0 0 0 3px rgba(237, 132, 88, 0.1);
 }
 
@@ -275,7 +277,7 @@ textarea {
 button[type="submit"] {
   background: var(--color-primary);
   color: var(--color-white);
-  border: none;
+  border: 1px solid black;
   border-radius: 8px;
   padding: 0.8rem 0;
   font-size: 1.1rem;
@@ -283,7 +285,6 @@ button[type="submit"] {
   cursor: pointer;
   margin-top: 0.5rem;
   transition: background 0.2s;
-  border: 2px solid black;
 }
 button[type="submit"]:hover:not(:disabled) {
   background: var(--color-link-hover);
@@ -318,7 +319,7 @@ p {
   --color-black: #111;
   --color-white: #fff;
   --color-error: #d32f2f;
-  --color-border: #e0e0e0;
+  --color-border: #333;
   --color-input-bg: #f7f6f5;
   --color-input-border: #cfcfcf;
   --color-link: #ed8458;
@@ -640,12 +641,10 @@ body {
 /* Cards */
 .profile-card,
 .section-card {
-  background: var(--color-card);
-  border-radius: 16px;
-  padding: 2rem;
+  border-radius: 10px;
+  padding: 0rem;
   margin-bottom: 1.5rem;
-  box-shadow: 0 4px 20px var(--color-shadow);
-  border: 1px solid var(--color-border);
+  overflow: hidden;
 }
 
 .section-card {
@@ -657,6 +656,9 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.5rem;
+  border-bottom: 1px solid black;
+  padding-bottom: 10px;
+  font-size: 1.5rem;
 }
 
 .card-title {
@@ -710,9 +712,9 @@ body {
 
 .field-type {
   font-size: 0.75rem;
-  color: var(--color-text-light);
+  color: white;
   padding: 0.125rem 0.5rem;
-  background: var(--color-border);
+  background: #ed8458;
   border-radius: 4px;
 }
 
@@ -818,7 +820,7 @@ body {
 .text-input,
 .modern-input {
   padding: 0.875rem 1rem;
-  border: 2px solid var(--color-input-border);
+  border: 1px solid black;
   border-radius: 8px;
   font-size: 1rem;
   transition: all 0.2s;
@@ -1396,7 +1398,7 @@ input:checked + .slider:before {
 .confirm-input {
   width: 100%;
   padding: 0.875rem 1rem;
-  border: 2px solid var(--color-input-border);
+  border: 1px solid black;
   border-radius: 8px;
   font-size: 1rem;
   margin-top: 1rem;
@@ -1437,7 +1439,7 @@ input:checked + .slider:before {
 .modal-button.cancel-button {
   background: var(--color-input-bg);
   color: var(--color-text);
-  border: 2px solid var(--color-border);
+  border: 1px solid black;
 }
 
 .modal-button.cancel-button:hover:not(:disabled) {
