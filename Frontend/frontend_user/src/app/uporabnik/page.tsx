@@ -26,6 +26,10 @@ import { UserData, UserResponse } from "../../types";
 const UserProfile = () => {
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    document.title = "Profil";
+  }, []);
   const [error, setError] = useState<string | null>(null);
   const [openAccordion, setOpenAccordion] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);

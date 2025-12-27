@@ -34,6 +34,10 @@ const VeselicePage = () => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const router = useRouter();
 
+  useEffect(() => {
+    document.title = "Upravljanje veselic";
+  }, []);
+
   // Form state
   const [formData, setFormData] = useState({
     ime_veselice: "",

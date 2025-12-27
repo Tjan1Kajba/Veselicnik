@@ -32,6 +32,10 @@ const OrdersPage = () => {
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const router = useRouter();
 
+  useEffect(() => {
+    document.title = "Naročila";
+  }, []);
+
   const fetchUser = () => {
     setLoading(true);
     fetch("http://localhost:8002/uporabnik/prijavljen", {

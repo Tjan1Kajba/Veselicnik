@@ -27,6 +27,10 @@ const VeselicePregledPage = () => {
   const [loadingVeselice, setLoadingVeselice] = useState(false);
   const router = useRouter();
 
+  useEffect(() => {
+    document.title = "Veselice";
+  }, []);
+
   const fetchUser = () => {
     setLoading(true);
     fetch("http://localhost:8002/uporabnik/prijavljen", {

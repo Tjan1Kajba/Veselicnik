@@ -35,6 +35,10 @@ const MenuPage = () => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const router = useRouter();
 
+  useEffect(() => {
+    document.title = "Meni";
+  }, []);
+
   // Form state
   const [formData, setFormData] = useState({
     name: "",
