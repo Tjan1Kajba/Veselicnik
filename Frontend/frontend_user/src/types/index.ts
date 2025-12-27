@@ -70,6 +70,26 @@ export interface StatusUpdateRequest {
   status: string;
 }
 
+export interface MusicRequest {
+  id: string;
+  user_id: string;
+  song_name: string;
+  artist?: string;
+  votes: number;
+  timestamp?: string;
+  id_veselica?: string;
+}
+
+export interface CreateMusicRequest {
+  song_name: string;
+  artist?: string;
+  id_veselica: string;
+}
+
+export interface VoteRequest {
+  user_id: string;
+}
+
 export interface UserNavigationProps {
   user: UserData | null;
   loading: boolean;
@@ -87,7 +107,7 @@ export interface SidebarProps {
 }
 
 export interface AdminSidebarProps extends SidebarProps {
-  activeItem?: 'profil' | 'veselice' | 'upravljanje' | 'menu' | 'narocila';
+  activeItem?: 'profil' | 'veselice' | 'upravljanje' | 'menu' | 'narocila' | 'glasba';
 }
 
 export interface UserSidebarProps extends SidebarProps {

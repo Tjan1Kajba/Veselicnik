@@ -18,10 +18,16 @@ import {
   FaPlus,
   FaMinus,
   FaShoppingCart,
+  FaMusic,
+  FaHeart,
+  FaTrash,
+  FaRedo,
 } from "react-icons/fa";
 import "../../uporabnik/dashboard.css";
 import { showToast } from "../../../utils/toast";
-import { UserData, UserResponse, Veselica, MenuItem, OrderItem, CreateOrderRequest, Order } from "../../../types";
+import { UserData, UserResponse, Veselica, MenuItem, OrderItem, CreateOrderRequest, Order, MusicRequest, CreateMusicRequest } from "../../../types";
+import AdminSidebar from "../../../components/AdminSidebar";
+import UserSidebar from "../../../components/UserSidebar";
 
 const VeselicaDetailPage = () => {
   const params = useParams();
@@ -42,6 +48,14 @@ const VeselicaDetailPage = () => {
   const [selectedItems, setSelectedItems] = useState<{ [key: string]: number }>({});
   const [loadingMenu, setLoadingMenu] = useState(false);
   const [creatingOrder, setCreatingOrder] = useState(false);
+
+  // Music requests state
+  const [musicRequests, setMusicRequests] = useState<MusicRequest[]>([]);
+  const [loadingRequests, setLoadingRequests] = useState(false);
+  const [creatingRequest, setCreatingRequest] = useState(false);
+  const [votingRequests, setVotingRequests] = useState<Set<string>>(new Set());
+  const [newSongName, setNewSongName] = useState("");
+  const [newArtist, setNewArtist] = useState("");
 
   const fetchUser = () => {
     setLoading(true);
@@ -87,6 +101,7 @@ const VeselicaDetailPage = () => {
     if (user && veselicaId) {
       fetchVeselica();
       fetchMenuItems();
+      fetchMusicRequests();
     }
   }, [user, veselicaId]);
 
@@ -328,6 +343,190 @@ const VeselicaDetailPage = () => {
     }
   };
 
+  const fetchMusicRequests = async () => {
+    setLoadingRequests(true);
+    try {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
+      }
+
+      const res = await fetch(`http://localhost:8004/music/requests/veselica/${encodeURIComponent(veselicaId)}`, {
+        method: "GET",
+        headers,
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        throw new Error("Neuspešno pridobivanje glasbenih želja.");
+      }
+
+      const data: MusicRequest[] = await res.json();
+      setMusicRequests(data);
+    } catch (err: any) {
+      const errorMessage = err.message || err.detail || err.error || "Napaka pri pridobivanju glasbenih želja.";
+      showToast(typeof errorMessage === 'string' ? errorMessage : "Napaka pri pridobivanju glasbenih želja.", "error");
+    } finally {
+      setLoadingRequests(false);
+    }
+  };
+
+  const handleCreateMusicRequest = async () => {
+    if (!newSongName.trim()) {
+      showToast("Vnesite ime pesmi.", "error");
+      return;
+    }
+
+    setCreatingRequest(true);
+    try {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
+      }
+
+      const requestBody: any = {
+        song_name: newSongName.trim(),
+        id_veselica: veselicaId,
+      };
+      if (newArtist.trim()) {
+        requestBody.artist = newArtist.trim();
+      }
+
+      const res = await fetch("http://localhost:8004/music/requests", {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        const errorMessage = errorData.detail || errorData.message || errorData.error || "Napaka pri ustvarjanju glasbene želje.";
+        throw new Error(typeof errorMessage === 'string' ? errorMessage : "Napaka pri ustvarjanju glasbene želje.");
+      }
+
+      const data = await res.json();
+      showToast("Glasbena želja uspešno ustvarjena!", "success");
+      setNewSongName("");
+      setNewArtist("");
+      fetchMusicRequests(); // Refresh the list
+    } catch (err: any) {
+      showToast(err.message || "Napaka pri ustvarjanju glasbene želje.", "error");
+    } finally {
+      setCreatingRequest(false);
+    }
+  };
+
+  const handleVote = async (requestId: string) => {
+    if (votingRequests.has(requestId)) return;
+
+    setVotingRequests(prev => new Set(prev).add(requestId));
+    try {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
+      }
+
+      const res = await fetch(`http://localhost:8004/music/requests/${encodeURIComponent(requestId)}/vote`, {
+        method: "POST",
+        headers,
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        const errorMessage = errorData.detail || errorData.message || errorData.error || "Napaka pri glasovanju.";
+        throw new Error(typeof errorMessage === 'string' ? errorMessage : "Napaka pri glasovanju.");
+      }
+
+      showToast("Glas uspešno oddan!", "success");
+      fetchMusicRequests(); // Refresh the list
+    } catch (err: any) {
+      showToast(err.message || "Napaka pri glasovanju.", "error");
+    } finally {
+      setVotingRequests(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(requestId);
+        return newSet;
+      });
+    }
+  };
+
+  const handleDeleteRequest = async (requestId: string) => {
+    if (!confirm("Ali ste prepričani, da želite izbrisati to glasbeno željo?")) {
+      return;
+    }
+
+    try {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
+      }
+
+      const res = await fetch(`http://localhost:8004/music/requests/${encodeURIComponent(requestId)}`, {
+        method: "DELETE",
+        headers,
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        const errorMessage = errorData.detail || errorData.message || errorData.error || "Napaka pri brisanju glasbene želje.";
+        throw new Error(typeof errorMessage === 'string' ? errorMessage : "Napaka pri brisanju glasbene želje.");
+      }
+
+      showToast("Glasbena želja uspešno izbrisana!", "success");
+      fetchMusicRequests(); // Refresh the list
+    } catch (err: any) {
+      showToast(err.message || "Napaka pri brisanju glasbene želje.", "error");
+    }
+  };
+
+  const handleResetVotes = async (requestId: string) => {
+    if (!confirm("Ali ste prepričani, da želite ponastaviti glasove za to glasbeno željo?")) {
+      return;
+    }
+
+    try {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
+      }
+
+      const res = await fetch(`http://localhost:8004/music/requests/${encodeURIComponent(requestId)}/reset_votes`, {
+        method: "PUT",
+        headers,
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        const errorMessage = errorData.detail || errorData.message || errorData.error || "Napaka pri ponastavitvi glasov.";
+        throw new Error(typeof errorMessage === 'string' ? errorMessage : "Napaka pri ponastavitvi glasov.");
+      }
+
+      showToast("Glasovi uspešno ponastavljeni!", "success");
+      fetchMusicRequests(); // Refresh the list
+    } catch (err: any) {
+      showToast(err.message || "Napaka pri ponastavitvi glasov.", "error");
+    }
+  };
+
   if (loading || loadingVeselica)
     return (
       <div className="modern-loading">
@@ -415,62 +614,11 @@ const VeselicaDetailPage = () => {
   return (
     <div className="modern-dashboard">
       {/* Sidebar */}
-      <div className="modern-sidebar">
-        <div className="sidebar-header">
-          <div className="user-avatar">
-            <div className="avatar-icon">
-              <FaUser size={32} />
-            </div>
-          </div>
-          <div className="user-info">
-            <h3 className="username">
-              {user.uporabnisko_ime || user.username || user.email}
-            </h3>
-            <p className="user-email">{user.email}</p>
-          </div>
-        </div>
-
-        <nav className="sidebar-nav">
-          <button
-            className="nav-item"
-            onClick={() => router.push("/uporabnik")}
-          >
-            <span className="nav-icon">
-              <FaClipboardList size={20} />
-            </span>
-            <span className="nav-text">Profil</span>
-          </button>
-          <button
-            className="nav-item active"
-            onClick={() => router.push("/veselice-pregled")}
-          >
-            <span className="nav-icon">
-              <FaUsersIcon size={20} />
-            </span>
-            <span className="nav-text">Veselice</span>
-          </button>
-          {user.tip_uporabnika === "admin" && (
-            <button
-              className="nav-item"
-              onClick={() => router.push("/veselice")}
-            >
-              <span className="nav-icon">
-                <FaUsersIcon size={20} />
-              </span>
-              <span className="nav-text">Upravljanje</span>
-            </button>
-          )}
-        </nav>
-
-        <div className="sidebar-footer">
-          <button className="logout-button" onClick={handleLogout}>
-            <span className="logout-icon">
-              <FaSignOutAlt size={20} />
-            </span>
-            <span className="logout-text">Odjava</span>
-          </button>
-        </div>
-      </div>
+      {user.tip_uporabnika === "admin" ? (
+        <AdminSidebar user={user} handleLogout={handleLogout} activeItem="veselice" />
+      ) : (
+        <UserSidebar user={user} handleLogout={handleLogout} activeItem="veselice" />
+      )}
 
       {/* Main Content */}
       <div className="modern-main">
@@ -1292,6 +1440,331 @@ const VeselicaDetailPage = () => {
                       </div>
                     )}
                   </>
+                )}
+              </div>
+            )}
+
+            {/* Music Requests Section */}
+            {registered && (
+              <div
+                style={{
+                  padding: "1.5rem",
+                  background: "var(--color-input-bg)",
+                  borderRadius: "12px",
+                  marginBottom: "2rem",
+                }}
+              >
+                <h3
+                  style={{
+                    fontSize: "1.125rem",
+                    fontWeight: 600,
+                    margin: "0 0 1rem 0",
+                    color: "var(--color-text)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <FaMusic size={20} />
+                  Glasbene želje ({musicRequests.length})
+                </h3>
+
+                {/* Create Request Form */}
+                <div
+                  style={{
+                    background: "var(--color-bg)",
+                    borderRadius: "12px",
+                    padding: "1.5rem",
+                    border: "1px solid var(--color-border)",
+                    marginBottom: "1.5rem",
+                  }}
+                >
+                  <h4
+                    style={{
+                      fontSize: "1rem",
+                      fontWeight: 600,
+                      margin: "0 0 1rem 0",
+                      color: "var(--color-text)",
+                    }}
+                  >
+                    Dodaj novo pesem
+                  </h4>
+                  <div style={{ display: "flex", gap: "1rem", alignItems: "flex-end" }}>
+                    <div style={{ flex: 1 }}>
+                      <label
+                        style={{
+                          display: "block",
+                          fontSize: "0.875rem",
+                          fontWeight: 500,
+                          color: "var(--color-text-light)",
+                          marginBottom: "0.5rem",
+                        }}
+                      >
+                        Ime pesmi *
+                      </label>
+                      <input
+                        type="text"
+                        value={newSongName}
+                        onChange={(e) => setNewSongName(e.target.value)}
+                        placeholder="Vnesite ime pesmi"
+                        style={{
+                          width: "100%",
+                          padding: "0.75rem",
+                          border: "1px solid var(--color-border)",
+                          borderRadius: "8px",
+                          background: "var(--color-input-bg)",
+                          color: "var(--color-text)",
+                          fontSize: "1rem",
+                        }}
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label
+                        style={{
+                          display: "block",
+                          fontSize: "0.875rem",
+                          fontWeight: 500,
+                          color: "var(--color-text-light)",
+                          marginBottom: "0.5rem",
+                        }}
+                      >
+                        Izvajalec (neobvezno)
+                      </label>
+                      <input
+                        type="text"
+                        value={newArtist}
+                        onChange={(e) => setNewArtist(e.target.value)}
+                        placeholder="Vnesite izvajalca"
+                        style={{
+                          width: "100%",
+                          padding: "0.75rem",
+                          border: "1px solid var(--color-border)",
+                          borderRadius: "8px",
+                          background: "var(--color-input-bg)",
+                          color: "var(--color-text)",
+                          fontSize: "1rem",
+                        }}
+                      />
+                    </div>
+                    <button
+                      onClick={handleCreateMusicRequest}
+                      disabled={creatingRequest || !newSongName.trim()}
+                      style={{
+                        padding: "0.75rem 1.5rem",
+                        fontSize: "1rem",
+                        fontWeight: 600,
+                        background: "var(--color-primary)",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "8px",
+                        cursor: creatingRequest || !newSongName.trim() ? "not-allowed" : "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.5rem",
+                        opacity: creatingRequest || !newSongName.trim() ? 0.6 : 1,
+                        minWidth: "120px",
+                        justifyContent: "center",
+                      }}
+                    >
+                      {creatingRequest ? (
+                        <>
+                          <span
+                            style={{
+                              display: "inline-block",
+                              width: "16px",
+                              height: "16px",
+                              border: "2px solid white",
+                              borderTopColor: "transparent",
+                              borderRadius: "50%",
+                              animation: "spin 0.6s linear infinite",
+                            }}
+                          />
+                          Dodajam...
+                        </>
+                      ) : (
+                        <>
+                          <FaPlus size={14} />
+                          Dodaj
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Requests List */}
+                {loadingRequests ? (
+                  <div style={{ textAlign: "center", padding: "2rem" }}>
+                    <p>Nalagam glasbene želje...</p>
+                  </div>
+                ) : musicRequests.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "2rem" }}>
+                    <p style={{ color: "var(--color-text-light)" }}>
+                      Še ni glasbenih želja. Bodite prvi, ki dodate pesem!
+                    </p>
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      display: "grid",
+                      gap: "1rem",
+                      gridTemplateColumns: "repeat(auto-fill, minmax(350px, 1fr))",
+                    }}
+                  >
+                    {musicRequests.map((request) => (
+                      <div
+                        key={request.id}
+                        style={{
+                          background: "var(--color-bg)",
+                          borderRadius: "12px",
+                          padding: "1.5rem",
+                          border: "1px solid var(--color-border)",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "1rem",
+                          transition: "all 0.2s ease",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = "translateY(-2px)";
+                          e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.1)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = "none";
+                          e.currentTarget.style.boxShadow = "none";
+                        }}
+                      >
+                        <div style={{ flex: 1 }}>
+                          <h4
+                            style={{
+                              fontSize: "1.125rem",
+                              fontWeight: 600,
+                              margin: "0 0 0.5rem 0",
+                              color: "var(--color-text)",
+                            }}
+                          >
+                            {request.song_name}
+                          </h4>
+                          {request.artist && (
+                            <p
+                              style={{
+                                fontSize: "0.875rem",
+                                color: "var(--color-text-light)",
+                                margin: "0 0 0.5rem 0",
+                              }}
+                            >
+                              {request.artist}
+                            </p>
+                          )}
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "0.5rem",
+                              fontSize: "0.875rem",
+                              color: "var(--color-text-light)",
+                            }}
+                          >
+                            <FaHeart size={14} color="var(--color-error)" />
+                            <span>{request.votes} glasov</span>
+                          </div>
+                        </div>
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "0.5rem",
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <button
+                            onClick={() => handleVote(request.id)}
+                            disabled={votingRequests.has(request.id)}
+                            style={{
+                              flex: 1,
+                              padding: "0.5rem 1rem",
+                              fontSize: "0.875rem",
+                              fontWeight: 600,
+                              background: "var(--color-primary)",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "6px",
+                              cursor: votingRequests.has(request.id) ? "not-allowed" : "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: "0.5rem",
+                              opacity: votingRequests.has(request.id) ? 0.6 : 1,
+                              minHeight: "32px",
+                            }}
+                          >
+                            {votingRequests.has(request.id) ? (
+                              <>
+                                <span
+                                  style={{
+                                    display: "inline-block",
+                                    width: "12px",
+                                    height: "12px",
+                                    border: "2px solid white",
+                                    borderTopColor: "transparent",
+                                    borderRadius: "50%",
+                                    animation: "spin 0.6s linear infinite",
+                                  }}
+                                />
+                                Glasujem...
+                              </>
+                            ) : (
+                              <>
+                                <FaHeart size={12} />
+                                Glasuj
+                              </>
+                            )}
+                          </button>
+                          {user.tip_uporabnika === "admin" && (
+                            <>
+                              <button
+                                onClick={() => handleResetVotes(request.id)}
+                                style={{
+                                  padding: "0.5rem 0.75rem",
+                                  fontSize: "0.875rem",
+                                  fontWeight: 600,
+                                  background: "var(--color-warning)",
+                                  color: "white",
+                                  border: "none",
+                                  borderRadius: "6px",
+                                  cursor: "pointer",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  minHeight: "32px",
+                                }}
+                                title="Ponastavi glasove"
+                              >
+                                <FaRedo size={12} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteRequest(request.id)}
+                                style={{
+                                  padding: "0.5rem 0.75rem",
+                                  fontSize: "0.875rem",
+                                  fontWeight: 600,
+                                  background: "var(--color-error)",
+                                  color: "white",
+                                  border: "none",
+                                  borderRadius: "6px",
+                                  cursor: "pointer",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  minHeight: "32px",
+                                }}
+                                title="Izbriši željo"
+                              >
+                                <FaTrash size={12} />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             )}
