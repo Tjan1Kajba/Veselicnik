@@ -934,10 +934,10 @@ const VeselicePage = () => {
                                 fontWeight: 600,
                               }}
                             >
-                              {veselica.st_pirjaveljenih || 0}
-                              {veselica.st_pirjaveljenih &&
-                              veselica.st_pirjaveljenih > 0
-                                ? ` / ${veselica.st_pirjaveljenih}`
+                              {veselica.prijavljeni_uporabniki?.length || 0}
+                              {veselica.max_udelezencev &&
+                              veselica.max_udelezencev > 0
+                                ? ` / ${veselica.max_udelezencev}`
                                 : ""}
                             </span>
                           </div>
