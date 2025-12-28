@@ -12,6 +12,9 @@ import secrets
 import json
 import os
 import jwt
+import pika
+import uuid
+import logging
 
 
 JWT_SECRET_KEY = os.getenv(
@@ -32,6 +35,12 @@ MONGODB_URL = os.getenv(
 SERVICE_HOST = os.getenv('SERVICE_HOST', '0.0.0.0')
 SERVICE_PORT = int(os.getenv('SERVICE_PORT', 8000))
 
+RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'rabbitmq')
+RABBITMQ_PORT = int(os.getenv('RABBITMQ_PORT', 5672))
+RABBITMQ_USER = os.getenv('RABBITMQ_USER', 'admin')
+RABBITMQ_PASS = os.getenv('RABBITMQ_PASS', 'secret')
+EXCHANGE_NAME = 'logging_exchange'
+QUEUE_NAME = 'logging_queue'
 
 mongo_client = None
 users_collection = None
@@ -65,6 +74,49 @@ def init_database():
 
 
 db_initialized = init_database()
+
+
+def get_rabbitmq_connection():
+    credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASS)
+    connection = pika.BlockingConnection(pika.ConnectionParameters(
+        host=RABBITMQ_HOST,
+        port=RABBITMQ_PORT,
+        credentials=credentials
+    ))
+    return connection
+
+
+def send_log(timestamp, level, url, correlation_id, app_name, message):
+    try:
+        log_message = f"{timestamp} {level} {url} Correlation: {correlation_id} [{app_name}] - {message}"
+        print(f"LOG MESSAGE: {log_message}")
+        connection = get_rabbitmq_connection()
+        print("RabbitMQ connection established")
+        channel = connection.channel()
+        channel.exchange_declare(exchange=EXCHANGE_NAME, exchange_type='direct', durable=True)
+        channel.queue_declare(queue=QUEUE_NAME, durable=True)
+        channel.queue_bind(exchange=EXCHANGE_NAME, queue=QUEUE_NAME, routing_key='')
+        channel.basic_publish(
+            exchange=EXCHANGE_NAME,
+            routing_key='',
+            body=log_message,
+            properties=pika.BasicProperties(delivery_mode=2)
+        )
+        print("Log published successfully")
+        connection.close()
+    except Exception as e:
+        print(f"Failed to send log: {e}")
+        import traceback
+        traceback.print_exc()
+
+
+def log_request(request, message, level='INFO'):
+    correlation_id = getattr(request.state, 'correlation_id', 'unknown')
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S,%f')[:-3]
+    url = str(request.url)
+    app_name = 'storitev_uporabniskega_sistema'
+    send_log(timestamp, level, url, correlation_id, app_name, message)
+
 
 app = FastAPI(
     title="Uporabniški Sistem",
@@ -549,10 +601,12 @@ def preveri_geslo(geslo: str, zakodirano_geslo: str) -> bool:
 
 
 @app.post("/uporabnik/registracija", tags=["Sistem registracije in prijave"], response_model=OdgovorUporabnika)
-async def registracija(podatki: UstvariUporabnika):
+async def registracija(request: Request, podatki: UstvariUporabnika):
     """
     Registracija novega uporabnika.
     """
+    print("Registration called")
+    log_request(request, "Klic storitve POST /uporabnik/registracija")
     if mongo_client is None:
         raise HTTPException(status_code=503, detail="Baza ni na voljo")
 
@@ -581,11 +635,12 @@ async def registracija(podatki: UstvariUporabnika):
 
 
 @app.post("/uporabnik/prijava", tags=["Sistem registracije in prijave"], response_model=JWTResponse)
-async def prijava(podatki: PrijavaUporabnika, response: Response):
+async def prijava(request: Request, podatki: PrijavaUporabnika, response: Response):
     """
     Prijava uporabnika z uporabniškim imenom ali emailom in geslom.
     Vrne JWT access in refresh token.
     """
+    log_request(request, "Klic storitve POST /uporabnik/prijava")
     if mongo_client is None:
         raise HTTPException(status_code=503, detail="Storitev ni na voljo")
 
@@ -650,10 +705,11 @@ async def prijava(podatki: PrijavaUporabnika, response: Response):
 
 
 @app.post("/auth/refresh", tags=["Sistem registracije in prijave"], response_model=JWTResponse)
-async def osvezi_token(podatki: RefreshTokenRequest):
+async def osvezi_token(request: Request, podatki: RefreshTokenRequest):
     """
     Osveži access token z uporabo refresh tokena.
     """
+    log_request(request, "Klic storitve POST /auth/refresh")
     try:
         payload = preveri_jwt_token(
             podatki.refresh_token, token_type="refresh")
@@ -731,6 +787,7 @@ async def odjava(request: Request, response: Response, current_user: dict = Depe
     """
     Odjava trenutnega uporabnika. Prekliče JWT token in sejo.
     """
+    log_request(request, "Klic storitve POST /uporabnik/odjava")
     session_token = request.cookies.get("session_token")
 
     if session_token:
@@ -747,10 +804,11 @@ async def odjava(request: Request, response: Response, current_user: dict = Depe
 
 
 @app.get("/uporabnik/prijavljen", tags=["Podatki uporabnika"], response_model=PrijavljenOdgovor)
-async def prijavljen_uporabnik(current_user: dict = Depends(zahtevaj_avtentikacijo)):
+async def prijavljen_uporabnik(request: Request, current_user: dict = Depends(zahtevaj_avtentikacijo)):
     """
     Pridobi podatke o prijavljenem uporabniku in vrne nove JWT tokene.
     """
+    log_request(request, "Klic storitve GET /uporabnik/prijavljen")
     access_token = ustvari_access_token(current_user)
     refresh_token = ustvari_refresh_token(current_user["id"])
 
@@ -771,10 +829,11 @@ async def prijavljen_uporabnik(current_user: dict = Depends(zahtevaj_avtentikaci
 
 
 @app.get("/uporabniki", tags=["Podatki uporabnika"], response_model=List[OdgovorUporabnika])
-async def vsi_uporabniki(current_user: dict = Depends(zahtevaj_avtentikacijo)):
+async def vsi_uporabniki(request: Request, current_user: dict = Depends(zahtevaj_avtentikacijo)):
     """
     Pridobi seznam vseh uporabnikov. 
     """
+    log_request(request, "Klic storitve GET /uporabniki")
     if mongo_client is None:
         raise HTTPException(status_code=503, detail="Baza ni na voljo")
 
@@ -804,12 +863,14 @@ async def vsi_uporabniki(current_user: dict = Depends(zahtevaj_avtentikacijo)):
 
 @app.put("/uporabnik/posodobi-uporabnika", tags=["Posodobi uporabnika"], response_model=OdgovorUporabnika)
 async def posodobi_uporabnika(
+    request: Request,
     podatki: PosodobiUporabnika,
     current_user: dict = Depends(zahtevaj_avtentikacijo)
 ):
     """
     Posodobi podatke trenutnega uporabnika.
     """
+    log_request(request, "Klic storitve PUT /uporabnik/posodobi-uporabnika")
     if mongo_client is None:
         raise HTTPException(status_code=503, detail="Baza ni na voljo")
 
@@ -889,11 +950,13 @@ async def posodobi_uporabnika(
 
 @app.patch("/uporabnik/posodobi-uporabnika/spremeni-geslo", tags=["Posodobi uporabnika"], response_model=dict)
 async def spremeni_geslo(
+        request: Request,
         podatki: SpremeniGeslo,
         current_user: dict = Depends(zahtevaj_avtentikacijo)):
     """
     Spremeni geslo trenutnega uporabnika.
     """
+    log_request(request, "Klic storitve PATCH /uporabnik/posodobi-uporabnika/spremeni-geslo")
     if mongo_client is None:
         raise HTTPException(status_code=503, detail="Baza ni na voljo")
 
@@ -1009,12 +1072,14 @@ async def izbrisi_racun(
 
 @app.delete("/uporabnik/izbrisi-racun/{uporabnisko_ime}", tags=["Izbriši uporabnika"], response_model=dict)
 async def izbrisi_uporabnika_po_uporabniskem_imenu(
+    request: Request,
     uporabnisko_ime: str,
     current_user: dict = Depends(zahtevaj_avtentikacijo)
 ):
     """
     Izbriši uporabnika po uporabniškem imenu. 
     """
+    log_request(request, f"Klic storitve DELETE /uporabnik/izbrisi-racun/{uporabnisko_ime}")
     if mongo_client is None:
         raise HTTPException(status_code=503, detail="Baza ni na voljo")
 
@@ -1086,6 +1151,7 @@ async def izbrisi_uporabnika_po_uporabniskem_imenu(
 
 @app.post("/veselice", tags=["Veselice"], response_model=OdgovorVeselice)
 async def ustvari_veselico(
+    request: Request,
     podatki: UstvariVeselico,
     current_user: dict = Depends(zahtevaj_admin_pravice)
 ):
@@ -1093,6 +1159,7 @@ async def ustvari_veselico(
     Ustvari novo veselico. 
     Dostop imajo samo uporabniki tipa admin.
     """
+    log_request(request, "Klic storitve POST /veselice")
     if mongo_client is None or veselice_collection is None:
         raise HTTPException(status_code=503, detail="Baza ni na voljo")
 
@@ -1122,12 +1189,14 @@ async def ustvari_veselico(
 
 @app.get("/veselice", tags=["Veselice"], response_model=List[OdgovorVeselice])
 async def pridobi_vse_veselice(
+    request: Request,
     current_user: dict = Depends(zahtevaj_avtentikacijo)
 ):
     """
     Pridobi seznam vseh veselic.
     Dostop imajo vsi prijavljeni uporabniki.
     """
+    log_request(request, "Klic storitve GET /veselice")
     if mongo_client is None or veselice_collection is None:
         raise HTTPException(status_code=503, detail="Baza ni na voljo")
 
@@ -1146,12 +1215,14 @@ async def pridobi_vse_veselice(
 
 @app.get("/veselice/{veselica_id}", tags=["Veselice"], response_model=OdgovorVeseliceDetail)
 async def pridobi_veselico(
+    request: Request,
     veselica_id: str,
     current_user: dict = Depends(zahtevaj_avtentikacijo)
 ):
     """
     Pridobi podatke o posamezni veselici.
     """
+    log_request(request, f"Klic storitve GET /veselice/{veselica_id}")
     if mongo_client is None or veselice_collection is None:
         raise HTTPException(status_code=503, detail="Baza ni na voljo")
 
@@ -1201,12 +1272,14 @@ async def pridobi_veselico(
 
 @app.post("/veselice/{veselica_id}/prijava", tags=["Veselice"])
 async def prijava_na_veselico(
+    request: Request,
     veselica_id: str,
     current_user: dict = Depends(zahtevaj_avtentikacijo)
 ):
     """
     Prijavi trenutnega uporabnika na veselico.
     """
+    log_request(request, f"Klic storitve POST /veselice/{veselica_id}/prijava")
     if mongo_client is None or veselice_collection is None:
         raise HTTPException(status_code=503, detail="Baza ni na voljo")
 
@@ -1276,12 +1349,14 @@ async def prijava_na_veselico(
 
 @app.post("/veselice/{veselica_id}/odjava", tags=["Veselice"])
 async def odjava_z_veselice(
+    request: Request,
     veselica_id: str,
     current_user: dict = Depends(zahtevaj_avtentikacijo)
 ):
     """
     Odjavi trenutnega uporabnika z veselice.
     """
+    log_request(request, f"Klic storitve POST /veselice/{veselica_id}/odjava")
     if mongo_client is None or veselice_collection is None:
         raise HTTPException(status_code=503, detail="Baza ni na voljo")
 
@@ -1340,6 +1415,7 @@ async def odjava_z_veselice(
 
 @app.delete("/veselice/{veselica_id}", tags=["Veselice"], response_model=dict)
 async def izbrisi_veselico(
+    request: Request,
     veselica_id: str,
     current_user: dict = Depends(zahtevaj_admin_pravice)
 ):
@@ -1347,6 +1423,7 @@ async def izbrisi_veselico(
     Izbriši veselico. 
     Dostop imajo samo uporabniki tipa admin.
     """
+    log_request(request, f"Klic storitve DELETE /veselice/{veselica_id}")
     if mongo_client is None or veselice_collection is None:
         raise HTTPException(status_code=503, detail="Baza ni na voljo")
 
@@ -1384,11 +1461,12 @@ async def izbrisi_veselico(
 
 
 @app.post("/auth/verify-token", tags=["JWT Avtentikacija"])
-async def verify_token_via_body(podatki: TokenForVerification):
+async def verify_token_via_body(request: Request, podatki: TokenForVerification):
     """
     Preveri veljavnost JWT tokena preko request bodyja.
     Uporabno za direktno testiranje brez Authorization headerja.
     """
+    log_request(request, "Klic storitve POST /auth/verify-token")
     try:
         payload = preveri_jwt_token(podatki.token, token_type="access")
         return {
@@ -1415,6 +1493,8 @@ async def preveri_jwt_middleware(request: Request, call_next):
         "/uporabnik/prijava", "/uporabnik/registracija",
         "/auth/refresh", "/auth/verify-token", "/auth/swagger-token"
     ]
+
+    request.state.correlation_id = str(uuid.uuid4())
 
     if request.url.path in public_paths or request.url.path.startswith("/static"):
         return await call_next(request)

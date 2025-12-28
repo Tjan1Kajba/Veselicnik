@@ -55,6 +55,66 @@ services:
       retries: 3
       start_period: 10s
 
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: secret
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  logging-mongo:
+    image: mongo:6.0
+    container_name: logging-mongodb
+    ports:
+      - "27020:27017"
+    environment:
+      MONGO_INITDB_DATABASE: logging_db
+    volumes:
+      - logging_mongo_data:/data/db
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  logging-service:
+    build:
+      context: ./logging_service
+      dockerfile: Dockerfile
+    container_name: logging_service
+    ports:
+      - "0.0.0.0:8005:8000"
+    environment:
+      MONGODB_URL: mongodb://logging-mongo:27017/logging_db
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: admin
+      RABBITMQ_PASS: secret
+    depends_on:
+      logging-mongo:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+
 
   food-service:
     build:
@@ -124,8 +184,14 @@ services:
       - "0.0.0.0:8002:8000"
     environment:
       MONGODB_URL: mongodb://user-mongo:27017/uporabniski_sistem
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: admin
+      RABBITMQ_PASS: secret
     depends_on:
       user-mongo:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     networks:
       - app-network
@@ -241,5 +307,5 @@ volumes:
   uporabniski_mongo_data:
   izgubljeni_predmeti_mongo_data:
   srecke_mongo_data:
-
-
+  rabbitmq_data:
+  logging_mongo_data:
