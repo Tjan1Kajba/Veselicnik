@@ -71,13 +71,9 @@ def get_requests_by_veselica(id_veselica: str):
 def create_request(music_request: CreateMusicRequest, user_data: dict = Depends(get_current_user)):
     user_id = user_data["username"]
 
-    # Check if user has paid orders (temporarily disabled for testing)
-    # r = requests.get(f"{FOOD_SERVICE_URL}/orders/user/{user_id}/paid")
-    # if r.status_code != 200 or not r.json().get("has_paid_orders", False):
-    #     raise HTTPException(status_code=403, detail="You must buy food before making a music request")
-
     request_doc = music_request.dict()
     request_doc["votes"] = 0
+    request_doc["voters"] = []  
     request_doc["timestamp"] = datetime.utcnow()
     request_doc["user_id"] = user_id
 
@@ -86,10 +82,24 @@ def create_request(music_request: CreateMusicRequest, user_data: dict = Depends(
 
 @app.post("/music/requests/{id}/vote")
 def vote_request(id: str, user_data: dict = Depends(get_current_user)):
-    result = requests_collection.update_one({"_id": ObjectId(id)}, {"$inc": {"votes": 1}})
-    if result.matched_count == 0:
+    user_id = user_data["username"]  
+
+    music_request = requests_collection.find_one({"_id": ObjectId(id)})
+    if not music_request:
         raise HTTPException(status_code=404, detail="Music request not found")
+
+    voters = music_request.get("voters", [])
+
+    if user_id in voters:
+        raise HTTPException(status_code=400, detail="You have already voted for this song")
+
+    requests_collection.update_one(
+        {"_id": ObjectId(id)},
+        {"$inc": {"votes": 1}, "$push": {"voters": user_id}}
+    )
+
     return {"message": "Vote recorded"}
+
 
 @app.get("/music/requests")
 def get_all_requests():
