@@ -5,6 +5,7 @@ from typing import List
 from datetime import datetime
 import pika
 import os
+import re
 
 MONGODB_URL = os.getenv('MONGODB_URL', 'mongodb://logging-mongo:27017/logging_db')
 RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'rabbitmq')
@@ -41,6 +42,32 @@ def get_rabbitmq_connection():
     ))
     return connection
 
+def parse_log_message(log_message: str):
+    # Pattern: TIMESTAMP LEVEL URL Correlation: CORRELATION_ID [APP_NAME] - MESSAGE
+    pattern = r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}) (\w+) (.+?) Correlation: ([a-f0-9-]+) \[(.+?)\] - (.+)'
+    match = re.match(pattern, log_message)
+    if match:
+        timestamp_str, level, url, correlation_id, app_name, message = match.groups()
+        timestamp = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S,%f')
+        return {
+            "timestamp": timestamp,
+            "level": level,
+            "url": url,
+            "correlation_id": correlation_id,
+            "app_name": app_name,
+            "message": message
+        }
+    else:
+        # If parsing fails, store as raw
+        return {
+            "timestamp": datetime.utcnow(),
+            "level": "UNKNOWN",
+            "url": "",
+            "correlation_id": "",
+            "app_name": "",
+            "message": log_message
+        }
+
 class LogEntry(BaseModel):
     timestamp: str
     level: str
@@ -67,14 +94,11 @@ async def consume_logs():
                 log_message = body.decode('utf-8')
                 print(f"Raw log message: '{log_message}'")
 
-                # For now, just store the raw message
-                log_doc = {
-                    "raw_message": log_message,
-                    "consumed_at": datetime.utcnow()
-                }
-                logs_collection.insert_one(log_doc)
+                # Parse the log message into structured data
+                log_data = parse_log_message(log_message)
+                logs_collection.insert_one(log_data)
                 logs_consumed += 1
-                print(f"Stored raw log: {log_message}")
+                print(f"Stored parsed log: {log_data}")
             else:
                 break
 
@@ -84,7 +108,7 @@ async def consume_logs():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error consuming logs: {str(e)}")
 
-@app.get("/logs/{datumOd}/{datumDo}")
+@app.get("/logs/{datumOd}/{datumDo}", response_model=List[LogEntry])
 async def get_logs(datumOd: str, datumDo: str):
     if mongo_client is None or logs_collection is None:
         raise HTTPException(status_code=503, detail="Database not available")
@@ -96,10 +120,14 @@ async def get_logs(datumOd: str, datumDo: str):
 
         logs = list(logs_collection.find({
             "timestamp": {
-                "$gte": start_date.strftime('%Y-%m-%d'),
-                "$lte": end_date.strftime('%Y-%m-%d')
+                "$gte": start_date,
+                "$lte": end_date
             }
-        }).sort("timestamp", 1))
+        }, {"_id": 0}).sort("timestamp", 1))
+
+        # Convert datetime to string for JSON serialization
+        for log in logs:
+            log['timestamp'] = log['timestamp'].isoformat()
 
         return logs
 
