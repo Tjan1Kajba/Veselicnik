@@ -333,7 +333,6 @@ def ustvari_access_token(user_data: Dict[str, Any]) -> str:
         "username": user_data["uporabnisko_ime"],
         "email": user_data["email"],
         "user_type": user_data.get("tip_uporabnika", "normal"),
-        "id_veselica": pridobi_veselico_za_uporabnika(str(user_data["_id"]))
     }
     return ustvari_jwt_token(token_data, token_type="access")
 
