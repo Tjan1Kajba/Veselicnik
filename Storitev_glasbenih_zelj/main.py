@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from bson import ObjectId
@@ -9,13 +9,22 @@ from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 import os
 from models import MusicRequest, Vote, CreateMusicRequest
 from database import requests_collection
+from logger import send_log
+import uuid
 
 app = FastAPI(title="Music Requests Service")
 
-# Add CORS middleware
+@app.middleware("http")
+async def add_correlation_id(request: Request, call_next):
+    correlation_id = request.headers.get("X-Correlation-Id", str(uuid.uuid4()))
+    request.state.correlation_id = correlation_id
+    response = await call_next(request)
+    response.headers["X-Correlation-Id"] = correlation_id
+    return response
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify your frontend URL
+    allow_origins=["*"],  
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -68,8 +77,16 @@ def get_requests_by_veselica(id_veselica: str):
     return [request_serializer(r) for r in requests_list]
 
 @app.post("/music/requests")
-def create_request(music_request: CreateMusicRequest, user_data: dict = Depends(get_current_user)):
+def create_request(music_request: CreateMusicRequest,request: Request, user_data: dict = Depends(get_current_user)):
     user_id = user_data["username"]
+    correlation_id = request.state.correlation_id
+    send_log(
+        log_type="INFO",
+        url="/music/requests",
+        message=f"User {user_id} created music request",
+        service="music-service",
+        correlation_id=correlation_id
+    )
 
     request_doc = music_request.dict()
     request_doc["votes"] = 0
@@ -81,9 +98,16 @@ def create_request(music_request: CreateMusicRequest, user_data: dict = Depends(
     return {"id": str(result.inserted_id), "user_id": user_id, "id_veselica": music_request.id_veselica}
 
 @app.post("/music/requests/{id}/vote")
-def vote_request(id: str, user_data: dict = Depends(get_current_user)):
+def vote_request(id: str,request: Request, user_data: dict = Depends(get_current_user)):
     user_id = user_data["username"]  
-
+    correlation_id = request.state.correlation_id
+    send_log(
+        log_type="INFO",
+        url="/music/requests{id}/vote",
+        message=f"User {user_id} created music vote",
+        service="music-service",
+        correlation_id=correlation_id
+    )
     music_request = requests_collection.find_one({"_id": ObjectId(id)})
     if not music_request:
         raise HTTPException(status_code=404, detail="Music request not found")
@@ -102,7 +126,15 @@ def vote_request(id: str, user_data: dict = Depends(get_current_user)):
 
 
 @app.get("/music/requests")
-def get_all_requests():
+def get_all_requests(request: Request):
+    correlation_id = request.state.correlation_id
+    send_log(
+        log_type="INFO",
+        url="/music/requests",
+        message=f"Created music request",
+        service="music-service",
+        correlation_id=correlation_id
+    )
     requests_list = list(requests_collection.find())
     return [request_serializer(r) for r in requests_list]
 

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from bson import ObjectId
@@ -10,9 +10,17 @@ import requests
 from models import Order, StatusUpdate, Payment, MenuItem
 from database import orders_collection, menu_collection
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-
+from logger import send_log
+import uuid
 app = FastAPI(title="Food Ordering Microservice")
 
+@app.middleware("http")
+async def add_correlation_id(request: Request, call_next):
+    correlation_id = request.headers.get("X-Correlation-Id", str(uuid.uuid4()))
+    request.state.correlation_id = correlation_id
+    response = await call_next(request)
+    response.headers["X-Correlation-Id"] = correlation_id
+    return response
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -96,14 +104,31 @@ def order_serializer(order) -> dict:
 
 
 @app.get("/menu")
-def get_menu():
+def get_menu(request: Request):
+    correlation_id = request.state.correlation_id
+    send_log(
+        log_type="INFO",
+        url="/menu",
+        message=f"Created menu request",
+        service="narocanje-hrane-service",
+        correlation_id=correlation_id
+    )
+
     menu = list(menu_collection.find())
     for item in menu:
         item["_id"] = str(item["_id"])
     return menu
 
 @app.post("/menu")
-def add_menu_item(item: MenuItem, user_data: dict = Depends(get_current_user)):
+def add_menu_item(item: MenuItem, request: Request ,user_data: dict = Depends(get_current_user)):
+    correlation_id = request.state.correlation_id
+    send_log(
+        log_type="INFO",
+        url="/menu",
+        message=f"Created POST menu request",
+        service="narocanje-hrane-service",
+        correlation_id=correlation_id
+    )
     result = menu_collection.insert_one(item.dict())
     return {"id": str(result.inserted_id)}
 
@@ -116,13 +141,21 @@ def delete_menu_item(id: str, user_data: dict = Depends(get_current_user)):
 
 
 @app.post("/orders")
-def create_order(order: Order, user_data: dict = Depends(get_current_user)):
+def create_order(order: Order, request: Request ,user_data: dict = Depends(get_current_user)):
+    correlation_id = request.state.correlation_id
+
     access_token = user_data["token"]
     payload = user_data["payload"]
 
     username = payload.get("username")
     id_veselica = get_id_veselica_from_auth(access_token)
-
+    send_log(
+        log_type="INFO",
+        url="/orders",
+        message=f"User {username} Created POST orders request",
+        service="narocanje-hrane-service",
+        correlation_id=correlation_id
+    )
     total_price = 0.0
     for item in order.items:
         menu_item = menu_collection.find_one({"name": item.item_id})
