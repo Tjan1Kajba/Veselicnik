@@ -38,6 +38,16 @@ const swaggerSpec = swaggerJsdoc({
   definition: {
     openapi: "3.0.0",
     info: { title: "Storitev srečk", version: "1.0.0" },
+  
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+        },
+      },
+    },
   },
   apis: ["./routes/*.js"],
 });
