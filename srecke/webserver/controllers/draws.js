@@ -2,6 +2,8 @@ const Draw = require("../models/Draw");
 const Ticket = require("../models/Ticket");
 const Prize = require("../models/Prize");
 
+const { sendLog } = require("../logger/rabbitmq.js");
+
 function pickPrize(prizes) {
   const rand = Math.random();
   let cumulative = 0;
@@ -33,9 +35,32 @@ exports.createDraw = async (req, res) => {
     });
 
     const draw = await Draw.create({ date: new Date(), winners });
+
+    // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      true,
+      "",
+      req.correlationId
+    );
+
     res.status(201).json(draw);
+
   } catch (err) {
     console.error(err);
+
+    // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "",
+      req.correlationId
+    );
+
     res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -45,13 +70,62 @@ exports.getWinners = async (req, res) => {
     .populate("winners.ticketId")
     .populate("winners.prizeId");
 
-  if (!draw) return res.status(404).json({ error: "Draw not found" });
+  if (!draw) {
+
+    // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "",
+      req.correlationId
+    );
+
+    return res.status(404).json({ error: "Draw not found" });
+  }
+
+
+  // Send log to RabbitMQ
+  await sendLog(
+    "INFO",
+    req.originalUrl,
+    req.method,
+    true,
+    "",
+    req.correlationId
+  );
+
 
   res.json(draw.winners);
 };
 
 exports.deleteDraw = async (req, res) => {
   const deleted = await Draw.findByIdAndDelete(req.params.id);
-  if (!deleted) return res.status(404).json({ error: "Draw not found" });
+  if (!deleted) {
+
+    // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "",
+      req.correlationId
+    );
+
+    return res.status(404).json({ error: "Draw not found" });
+  }
+
+  // Send log to RabbitMQ
+  await sendLog(
+    "INFO",
+    req.originalUrl,
+    req.method,
+    true,
+    "",
+    req.correlationId
+  );
+
   res.status(204).send();
 };

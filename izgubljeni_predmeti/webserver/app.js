@@ -21,6 +21,7 @@ const { DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, PORT } = process.env;
 
 const MONGO_URI = `mongodb://${DB_USER}:${DB_PASSWORD}@izgubljeni_predmeti_mongo:27017/${DB_NAME}?authSource=admin`;
 
+const { sendLog } = require("./logger/rabbitmq.js");
 
 async function connectWithRetry(retries = 10, delay = 3000) {
   for (let i = 0; i < retries; i++) {
@@ -53,6 +54,12 @@ const itemSchema = new mongoose.Schema(
 );
 
 const Item = mongoose.model("Item", itemSchema);
+
+
+const correlationIdMiddleware = require("./middleware/correlation.js");
+
+app.use(correlationIdMiddleware);
+
 
 // -----------------------------
 // Swagger Setup
@@ -146,6 +153,15 @@ app.post("/lost",
   authenticateToken,
  async (req, res) => {
   const item = await Item.create({ type: "lost", ...req.body });
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      true,
+      "",
+      req.correlationId
+    );
   res.status(201).json(item);
 });
 
@@ -171,6 +187,17 @@ app.get("/lost",
   authenticateToken,
   async (req, res) => {
   const items = await Item.find({ type: "lost" });
+
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      true,
+      "",
+      req.correlationId
+    );
+
   res.json(items);
 });
 
@@ -202,9 +229,31 @@ app.get("/lost/:id",
   authenticateToken,
  async (req, res) => {
   const item = await Item.findById(req.params.id);
-  if (!item || item.type !== "lost")
-    return res.status(404).json({ message: "Predmet ne obstaja." });
+  if (!item || item.type !== "lost") {
+    
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "",
+      req.correlationId
+    );
 
+    return res.status(404).json({ message: "Predmet ne obstaja." });
+  }
+
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      true,
+      "",
+      req.correlationId
+    );
+    
   res.json(item);
 });
 
@@ -251,7 +300,32 @@ app.put("/lost/:id",
     req.body,
     { new: true }
   );
-  if (!item) return res.status(404).json({ message: "Predmet ne obstaja." });
+  if (!item) {
+    
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "",
+      req.correlationId
+    );
+
+    return res.status(404).json({ message: "Predmet ne obstaja." });
+  }
+
+  
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      true,
+      "",
+      req.correlationId
+    );
+
   res.json(item);
 });
 

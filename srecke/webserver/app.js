@@ -33,12 +33,13 @@ async function connectWithRetry(retries = 10, delay = 3000) {
 
 connectWithRetry();
 
+
 // Swagger
 const swaggerSpec = swaggerJsdoc({
   definition: {
     openapi: "3.0.0",
     info: { title: "Storitev srečk", version: "1.0.0" },
-  
+
     components: {
       securitySchemes: {
         bearerAuth: {
@@ -51,6 +52,11 @@ const swaggerSpec = swaggerJsdoc({
   },
   apis: ["./routes/*.js"],
 });
+
+const correlationIdMiddleware = require("./middleware/correlation.js");
+
+app.use(correlationIdMiddleware);
+
 
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
