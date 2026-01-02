@@ -294,7 +294,202 @@ app.delete("/lost/:id",
 
 /**
  * @swagger
+ * /found/{id}:
+ *   delete:
+ *     summary: Izbris najdenega predmeta
+ *     tags: [Found]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, description, userId]
+ *     responses:
+ *       201:
+ *         description: Item deleted
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 foundItem:
+ *                   $ref: '#/components/schemas/Item'
+ *                 foodOrderResponse:
+ *                   type: object
+ */
+app.delete(
+  "/found/:id",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const deletedItem = await Item.findOneAndDelete({
+        _id: id,
+        type: "found",
+      });
+
+      if (!deletedItem) {
+        return res.status(404).json({ error: "Found item not found" });
+      }
+
+      res.json({
+        message: "Found item deleted",
+        deletedItem,
+      });
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /found/{id}:
+ *   put:
+ *     summary: Posodobi najden predmet
+ *     tags: [Found]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - description
+ *             properties:
+ *               name:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Found item updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Item'
+ *       400:
+ *         description: Invalid input
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Item not found
+ */
+app.put(
+  "/found/:id",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name, description } = req.body;
+
+      // Basic validation
+      if (!name || !description) {
+        return res.status(400).json({
+          error: "name and description are required",
+        });
+      }
+
+      const updatedItem = await Item.findOneAndUpdate(
+  { _id: id, type: "found" },
+  { name, description },
+  { new: true, runValidators: true }
+);
+
+      if (!updatedItem) {
+        return res.status(404).json({ error: "Found item not found" });
+      }
+
+      res.json({
+        message: "Found item updated",
+        updatedItem,
+      });
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
+
+
+
+/**
+ * @swagger
  * /found:
+ *   post:
+ *     summary: Prijava najdenega predmeta
+ *     tags: [Found]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, description, userId]
+ *             properties:
+ *               name:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               userId:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Item created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 foundItem:
+ *                   $ref: '#/components/schemas/Item'
+ *                 foodOrderResponse:
+ *                   type: object
+ */
+app.post("/found",
+  authenticateToken,
+ async (req, res) => {
+  const { name, description, userId } = req.body;
+
+  try {
+    const foundItem = await Item.create({ type: "found", name, description });
+
+
+    res.status(201).json({
+      foundItem,
+    });
+
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * @swagger
+ * /foundAndOrderFood:
  *   post:
  *     summary: Prijava najdenega predmeta in naročilo hrane
  *     tags: [Found]
@@ -327,7 +522,7 @@ app.delete("/lost/:id",
  *                 foodOrderResponse:
  *                   type: object
  */
-app.post("/found",
+app.post("/foundAndOrderFood",
   authenticateToken,
  async (req, res) => {
   const { name, description, userId } = req.body;
