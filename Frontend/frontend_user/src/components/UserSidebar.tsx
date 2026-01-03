@@ -8,6 +8,7 @@ import {
   FaClipboardList,
   FaUsers,
   FaShoppingCart,
+  FaSearch,
 } from "react-icons/fa";
 import { UserSidebarProps } from "../types";
 
@@ -46,6 +47,12 @@ export default function UserSidebar({ user, handleLogout, activeItem = 'profil' 
             <FaShoppingCart size={20} />
           </span>
           <span className="nav-text">Naročila</span>
+        </Link>
+        <Link href="/izgubljeni-najdeni" className={`nav-item ${activeItem === 'izgubljeni' ? 'active' : ''}`}>
+          <span className="nav-icon">
+            <FaSearch size={20} />
+          </span>
+          <span className="nav-text">Izgubljeno</span>
         </Link>
       </nav>
 

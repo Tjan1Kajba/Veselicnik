@@ -234,6 +234,8 @@ const OrdersPage = () => {
         return "var(--color-success)";
       case "cancelled":
         return "var(--color-error)";
+      case "darilo":
+        return "#ed8458";
       default:
         return "var(--color-text-light)";
     }
@@ -248,6 +250,7 @@ const OrdersPage = () => {
       ready: "Pripravljeno",
       completed: "Dokončano",
       cancelled: "Preklicano",
+      darilo: "Darilo",
     };
     return statusMap[status.toLowerCase()] || status;
   };
@@ -541,6 +544,7 @@ const OrdersPage = () => {
                               <option value="ready">Pripravljeno</option>
                               <option value="completed">Dokončano</option>
                               <option value="cancelled">Preklicano</option>
+                              <option value="darilo">Darilo</option>
                             </select>
                           </div>
                         )}

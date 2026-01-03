@@ -111,5 +111,5 @@ export interface AdminSidebarProps extends SidebarProps {
 }
 
 export interface UserSidebarProps extends SidebarProps {
-  activeItem?: 'profil' | 'veselice' | 'narocila';
+  activeItem?: 'profil' | 'veselice' | 'narocila' | 'izgubljeni';
 }

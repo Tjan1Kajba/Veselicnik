@@ -104,7 +104,7 @@ def order_serializer(order) -> dict:
 
 
 @app.get("/menu")
-def get_menu(request: Request):
+def get_menu(request: Request, veselica_id: str = None):
     correlation_id = request.state.correlation_id
     send_log(
         log_type="INFO",
@@ -114,7 +114,11 @@ def get_menu(request: Request):
         correlation_id=correlation_id
     )
 
-    menu = list(menu_collection.find())
+    query = {}
+    if veselica_id:
+        query["veselica_id"] = {"$in": [veselica_id, None]}  # Include items with matching veselica_id or null (global items)
+
+    menu = list(menu_collection.find(query))
     for item in menu:
         item["_id"] = str(item["_id"])
     return menu
@@ -167,8 +171,8 @@ def create_order(order: Order, request: Request ,user_data: dict = Depends(get_c
     order_dict["total_price"] = total_price
     order_dict["user_id"] = username
     order_dict["id_veselica"] = id_veselica
-    order_dict["paid"] = False
-    order_dict["status"] = "created"
+    order_dict["paid"] = order.paid
+    order_dict["status"] = order.status
     order_dict["created_at"] = datetime.utcnow()
 
     result = orders_collection.insert_one(order_dict)

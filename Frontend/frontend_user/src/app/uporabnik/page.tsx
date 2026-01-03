@@ -51,6 +51,11 @@ const UserProfile = () => {
         }
         const data: UserResponse = await res.json();
 
+        // Store access token for API calls to other services
+        if (data.access_token) {
+          localStorage.setItem("access_token", data.access_token);
+        }
+
         if (data.user) {
           setUser(data.user);
         } else {

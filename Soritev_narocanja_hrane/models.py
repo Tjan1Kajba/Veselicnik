@@ -27,3 +27,4 @@ class MenuItem(BaseModel):
     description: Optional[str] = None
     price: float
     available: bool = True
+    veselica_id: Optional[str] = None

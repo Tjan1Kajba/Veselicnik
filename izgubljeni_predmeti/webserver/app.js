@@ -1,7 +1,8 @@
-  const express = require("express");
+const express = require("express");
 const mongoose = require("mongoose");
 const swaggerUi = require("swagger-ui-express");
 const swaggerJsdoc = require("swagger-jsdoc");
+const cors = require("cors");
 const dotenv = require("dotenv");
 
 const axios = require("axios");
@@ -12,6 +13,23 @@ const { requireAdmin } = require("./middleware/roleMiddleware.js");
 dotenv.config();
 
 const app = express();
+
+app.use(cors({
+  origin: [
+    "http://frontend_user:3000",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    "http://localhost:8001",
+    "http://localhost:8002",
+    "http://localhost:8003",
+    "http://localhost:8004",
+  ],
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+}));
+
 app.use(express.json());
 
 
@@ -415,6 +433,98 @@ app.delete("/lost/:id",
 
 /**
  * @swagger
+ * /found:
+ *   get:
+ *     summary: Vrne seznam vseh najdenih predmetov
+ *     tags: [Found]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of found items
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Item'
+ */
+app.get("/found",
+  authenticateToken,
+  async (req, res) => {
+  const items = await Item.find({ type: "found" });
+
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      true,
+      "",
+      req.correlationId
+    );
+
+  res.json(items);
+});
+
+/**
+ * @swagger
+ * /found/{id}:
+ *   get:
+ *     summary: Vrne podrobnosti o določenem najdenem predmetu
+ *     tags: [Found]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Item details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Item'
+ *       404:
+ *         description: Item not found
+ */
+app.get("/found/:id",
+  authenticateToken,
+ async (req, res) => {
+  const item = await Item.findById(req.params.id);
+  if (!item || item.type !== "found") {
+
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "",
+      req.correlationId
+    );
+
+    return res.status(404).json({ message: "Predmet ne obstaja." });
+  }
+
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      true,
+      "",
+      req.correlationId
+    );
+
+  res.json(item);
+});
+
+/**
+ * @swagger
  * /found/{id}:
  *   delete:
  *     summary: Izbris najdenega predmeta
@@ -460,7 +570,7 @@ app.delete(
       });
 
       if (!deletedItem) {
-          
+
   // Send log to RabbitMQ
     await sendLog(
       "INFO",
@@ -474,7 +584,7 @@ app.delete(
         return res.status(404).json({ error: "Found item not found" });
       }
 
-        
+
   // Send log to RabbitMQ
     await sendLog(
       "INFO",
@@ -491,7 +601,7 @@ app.delete(
       });
     } catch (err) {
       console.error(err.message);
-        
+
   // Send log to RabbitMQ
     await sendLog(
       "INFO",
@@ -555,11 +665,11 @@ app.put(
   async (req, res) => {
     try {
       const { id } = req.params;
-      const { name, description } = req.body;
+      const { name, description, veselica_id } = req.body;
 
       // Basic validation
       if (!name || !description) {
-          
+
   // Send log to RabbitMQ
     await sendLog(
       "INFO",
@@ -577,12 +687,12 @@ app.put(
 
       const updatedItem = await Item.findOneAndUpdate(
   { _id: id, type: "found" },
-  { name, description },
+  { name, description, veselica_id },
   { new: true, runValidators: true }
 );
 
       if (!updatedItem) {
-          
+
   // Send log to RabbitMQ
     await sendLog(
       "INFO",
@@ -596,7 +706,7 @@ app.put(
         return res.status(404).json({ error: "Found item not found" });
       }
 
-        
+
   // Send log to RabbitMQ
     await sendLog(
       "INFO",
@@ -613,7 +723,7 @@ app.put(
       });
     } catch (err) {
       console.error(err.message);
-        
+
   // Send log to RabbitMQ
     await sendLog(
       "INFO",
@@ -756,24 +866,30 @@ app.post("/foundAndOrderFood",
   try {
     // create the found item
     const foundItem = await Item.create({ type: "found", name, description, veselica_id });
-    // create the food order
-    const foodOrder = {
-      user_id: userId,
-      items: [
-        { item_id: food_name, quantity: 1 }
-      ],
-      status: "pending",
-      paid: true
-    };
-  
 
-    const foodResponse = await axios.post(FOOD_SERVICE_URL, foodOrder, {
-      headers: {
-        'Authorization': req.headers.authorization
-      }
-    });
+    let foodOrderResponse = null;
+    try {
+      // create the food order (automatically paid since it's a gift)
+      const foodOrder = {
+        user_id: userId,
+        items: [
+          { item_id: food_name, quantity: 1 }
+        ],
+        status: "Darilo",
+        paid: true
+      };
 
-      
+      const foodResponse = await axios.post(FOOD_SERVICE_URL, foodOrder, {
+        headers: {
+          'Authorization': req.headers.authorization
+        }
+      });
+      foodOrderResponse = foodResponse.data;
+    } catch (foodErr) {
+      console.error("Food order creation failed, but item was created:", foodErr.message);
+      // Log the error but don't fail the request since the item was created
+    }
+
   // Send log to RabbitMQ
     await sendLog(
       "INFO",
@@ -784,16 +900,15 @@ app.post("/foundAndOrderFood",
       req.correlationId
     );
 
-
-    // respond with both found item and food order
+    // respond with found item and food order (if successful)
     res.status(201).json({
       foundItem,
-      foodOrderResponse: foodResponse.data
+      foodOrderResponse
     });
 
   } catch (err) {
     console.error(err.message);
-      
+
   // Send log to RabbitMQ
     await sendLog(
       "INFO",
@@ -812,4 +927,3 @@ app.post("/foundAndOrderFood",
 app.listen(PORT || 9000, '0.0.0.0', () =>
   console.log(`🚀 Server running at http://localhost:${PORT || 9000}/docs`)
 );
-
