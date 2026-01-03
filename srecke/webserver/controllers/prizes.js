@@ -18,6 +18,22 @@ exports.getPrizes = async (req, res) => {
   res.json(prizes);
 };
 
+exports.getPrizesOnVeselica = async (req, res) => {
+  const prizes = await Prize.find({ veselica_id: req.params.id });
+  
+  // Send log to RabbitMQ
+  await sendLog(
+    "INFO",
+    req.originalUrl,
+    req.method,
+    true,
+    "",
+    req.correlationId
+  );
+
+  res.json(prizes);
+};
+
 exports.createPrize = async (req, res) => {
   try {
     const prize = await Prize.create(req.body);

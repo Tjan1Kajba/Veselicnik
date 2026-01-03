@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 
 const DrawSchema = new mongoose.Schema({
+  veselica_id: { type: String, required: true },
   date: { type: Date, default: Date.now },
   winners: [
     {

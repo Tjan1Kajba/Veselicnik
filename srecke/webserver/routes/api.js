@@ -11,10 +11,12 @@ const { requireAdmin } = require("../middleware/roleMiddleware");
 /**
  * @swagger
  * tags:
- *   - name: Tickets
  *   - name: Prizes
+ *   - name: Tickets
  *   - name: Draws
  */
+
+
 
 /* ================================
    TICKETS
@@ -36,7 +38,7 @@ const { requireAdmin } = require("../middleware/roleMiddleware");
  *             type: object
  *             required: [userId]
  *             properties:
- *               userId:
+ *               veselica_id:
  *                 type: string
  *     responses:
  *       201:
@@ -64,12 +66,14 @@ router.post("/tickets", authenticateToken, Tickets.createTicket);
  *               - songName
  *               - artist
  *             properties:
- *               userId:
+ *               veselica_id:
  *                 type: string
  *               songName:
  *                 type: string
+ *                 example: "Starships"
  *               artist:
  *                 type: string
+ *                 example: "Niki Minaj"
  *     responses:
  *       201:
  *         description: Ticket and music request created
@@ -148,7 +152,6 @@ router.put("/tickets/:id", authenticateToken, Tickets.updateTicket);
 router.delete("/tickets/:id", authenticateToken, Tickets.deleteTicket);
 
 
-
 /* ================================
    PRIZES
    ================================ */
@@ -164,6 +167,25 @@ router.delete("/tickets/:id", authenticateToken, Tickets.deleteTicket);
  *         description: OK
  */
 router.get("/prizes", Prizes.getPrizes);
+
+
+/**
+ * @swagger
+ * /prizes/{id}:
+ *   get:
+ *     summary: Seznam vseh nagrad na doloceni veselici
+ *     tags: [Prizes]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: OK
+ */
+router.get("/prizes/:id", Prizes.getPrizesOnVeselica);
 
 /**
  * @swagger
@@ -185,6 +207,9 @@ router.get("/prizes", Prizes.getPrizes);
  *                 type: string
  *               probability:
  *                 type: number
+ *                 example: 0.1
+ *               veselica_id:
+ *                 type: string
  *     responses:
  *       201:
  *         description: Nagrada ustvarjena
@@ -254,17 +279,23 @@ router.delete("/prizes/:id", authenticateToken, Prizes.deletePrize);
 
 /**
  * @swagger
- * /draws:
+ * /draws/{id_veselica}:
  *   post:
  *     summary: Ustvari novo žrebanje
  *     security:
  *       - bearerAuth: []
  *     tags: [Draws]
+ *     parameters:
+ *       - in: path
+ *         name: id_veselica
+ *         required: true
+ *         schema:
+ *           type: string
  *     responses:
  *       201:
  *         description: Žrebanje ustvarjeno
  */
-router.post("/draws", authenticateToken, requireAdmin, Draws.createDraw);
+router.post("/draws/:id_veselica", authenticateToken, requireAdmin, Draws.createDraw);
 
 /**
  * @swagger
