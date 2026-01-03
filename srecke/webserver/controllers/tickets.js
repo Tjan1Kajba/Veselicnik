@@ -5,7 +5,7 @@ const { sendLog } = require("../logger/rabbitmq.js");
 
 exports.createTicket = async (req, res) => {
   try {
-    const ticket = await Ticket.create(req.body);
+    const ticket = await Ticket.create({userId: req.user.id, veselica_id: req.body.veselica_id});
     // throw new Error("Simulated failure");
 
     // Send log to RabbitMQ
@@ -34,9 +34,9 @@ exports.createTicket = async (req, res) => {
 };
 
 exports.createTicketAndMusicRequest = async (req, res) => {
-  const { userId, songName, artist } = req.body;
+  const { veselica_id, songName, artist } = req.body;
 
-  if (!userId || !songName || !artist) {
+  if (!veselica_id || !songName || !artist) {
 
     // Send log to RabbitMQ
     await sendLog(
@@ -53,18 +53,21 @@ exports.createTicketAndMusicRequest = async (req, res) => {
 
   try {
     // Create a new ticket
-    const ticket = await Ticket.create({ userId });
+    const ticket = await Ticket.create({  userId: req.user.id, veselica_id });
 
     // Send POST request to music service
     const musicRequest = {
-      user_id: userId,
+      user_id: req.user.id,
       song_name: songName,
       artist,
-      votes: 0,
-      timestamp: new Date().toISOString(),
+      id_veselica: veselica_id
     };
 
-    const response = await axios.post("http://music-service:8000/music/requests", musicRequest);
+    const response = await axios.post("http://music-service:8000/music/requests", musicRequest, {
+      headers: {
+        'Authorization': req.headers.authorization
+      }
+    });
 
 
     // Send log to RabbitMQ

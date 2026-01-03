@@ -46,6 +46,7 @@ connectWithRetry();
 // -----------------------------
 const itemSchema = new mongoose.Schema(
   {
+    veselica_id: { type: String, required: true },
     type: { type: String, enum: ["lost", "found"], required: true },
     name: String,
     description: String,
@@ -145,25 +146,47 @@ app.use("/docs",
  *               description:
  *                 type: string
  *                 example: "Črna usnjena denarnica"
+ *               veselica_id:
+ *                 type: string
+ *                 example: ""
  *     responses:
  *       201:
  *         description: Item created
  */
 app.post("/lost",
   authenticateToken,
- async (req, res) => {
-  const item = await Item.create({ type: "lost", ...req.body });
-  // Send log to RabbitMQ
-    await sendLog(
-      "INFO",
-      req.originalUrl,
-      req.method,
-      true,
-      "",
-      req.correlationId
-    );
-  res.status(201).json(item);
-});
+  async (req, res) => {
+
+    try {
+      const item = await Item.create({ type: "lost", ...req.body });
+
+      // Send log to RabbitMQ
+      await sendLog(
+        "INFO",
+        req.originalUrl,
+        req.method,
+        true,
+        "",
+        req.correlationId
+      );
+
+      res.status(201).json(item);
+
+    } catch (err) {
+
+      // Send log to RabbitMQ
+      await sendLog(
+        "INFO",
+        req.originalUrl,
+        req.method,
+        false,
+        "",
+        req.correlationId
+      );
+
+      res.status(500).json({ error: err.message });
+    }
+  });
 
 /**
  * @swagger
@@ -356,7 +379,31 @@ app.delete("/lost/:id",
     _id: req.params.id,
     type: "lost",
   });
-  if (!result) return res.status(404).json({ message: "Predmet ne obstaja." });
+
+  if (!result){
+      
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "",
+      req.correlationId
+    );
+
+    return res.status(404).json({ message: "Predmet ne obstaja." });
+  }
+    
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      true,
+      "",
+      req.correlationId
+    );
 
   res.status(204).send();
 });
@@ -413,8 +460,30 @@ app.delete(
       });
 
       if (!deletedItem) {
+          
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "",
+      req.correlationId
+    );
+
         return res.status(404).json({ error: "Found item not found" });
       }
+
+        
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      true,
+      "",
+      req.correlationId
+    );
 
       res.json({
         message: "Found item deleted",
@@ -422,6 +491,17 @@ app.delete(
       });
     } catch (err) {
       console.error(err.message);
+        
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "",
+      req.correlationId
+    );
+
       res.status(500).json({ error: err.message });
     }
   }
@@ -479,6 +559,17 @@ app.put(
 
       // Basic validation
       if (!name || !description) {
+          
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "",
+      req.correlationId
+    );
+
         return res.status(400).json({
           error: "name and description are required",
         });
@@ -491,8 +582,30 @@ app.put(
 );
 
       if (!updatedItem) {
+          
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "",
+      req.correlationId
+    );
+
         return res.status(404).json({ error: "Found item not found" });
       }
+
+        
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      true,
+      "",
+      req.correlationId
+    );
 
       res.json({
         message: "Found item updated",
@@ -500,6 +613,17 @@ app.put(
       });
     } catch (err) {
       console.error(err.message);
+        
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "",
+      req.correlationId
+    );
+
       res.status(500).json({ error: err.message });
     }
   }
@@ -529,6 +653,8 @@ app.put(
  *                 type: string
  *               userId:
  *                 type: string
+ *               veselica_id:
+ *                 type: string
  *     responses:
  *       201:
  *         description: Item created
@@ -545,11 +671,21 @@ app.put(
 app.post("/found",
   authenticateToken,
  async (req, res) => {
-  const { name, description, userId } = req.body;
+  const { name, description, userId, veselica_id } = req.body;
 
   try {
-    const foundItem = await Item.create({ type: "found", name, description });
+    const foundItem = await Item.create({ type: "found", name, description, veselica_id });
 
+  
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      true,
+      "",
+      req.correlationId
+    );
 
     res.status(201).json({
       foundItem,
@@ -557,6 +693,17 @@ app.post("/found",
 
   } catch (err) {
     console.error(err.message);
+      
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "",
+      req.correlationId
+    );
+
     res.status(500).json({ error: err.message });
   }
 });
@@ -583,6 +730,11 @@ app.post("/found",
  *                 type: string
  *               userId:
  *                 type: string
+ *               veselica_id:
+ *                 type: string
+ *               food_name:
+ *                 type: string
+ *                 example: "pica"
  *     responses:
  *       201:
  *         description: Item created and food order sent
@@ -599,26 +751,41 @@ app.post("/found",
 app.post("/foundAndOrderFood",
   authenticateToken,
  async (req, res) => {
-  const { name, description, userId } = req.body;
+  const { name, description, userId, veselica_id, food_name } = req.body;
 
   try {
-    // 1️⃣ Create the found item
-    const foundItem = await Item.create({ type: "found", name, description });
-
-    // 2️⃣ Create the food order
+    // create the found item
+    const foundItem = await Item.create({ type: "found", name, description, veselica_id });
+    // create the food order
     const foodOrder = {
       user_id: userId,
       items: [
-        { item_id: foundItem._id.toString(), quantity: 1 }
+        { item_id: food_name, quantity: 1 }
       ],
       status: "pending",
-      paid: false
+      paid: true
     };
   
 
-    const foodResponse = await axios.post(FOOD_SERVICE_URL, foodOrder);
+    const foodResponse = await axios.post(FOOD_SERVICE_URL, foodOrder, {
+      headers: {
+        'Authorization': req.headers.authorization
+      }
+    });
 
-    // 3️⃣ Respond with both found item and food order
+      
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      true,
+      "",
+      req.correlationId
+    );
+
+
+    // respond with both found item and food order
     res.status(201).json({
       foundItem,
       foodOrderResponse: foodResponse.data
@@ -626,6 +793,17 @@ app.post("/foundAndOrderFood",
 
   } catch (err) {
     console.error(err.message);
+      
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "",
+      req.correlationId
+    );
+
     res.status(500).json({ error: err.message });
   }
 });

@@ -17,8 +17,8 @@ function pickPrize(prizes) {
 
 exports.createDraw = async (req, res) => {
   try {
-    const tickets = await Ticket.find(); // all purchased tickets
-    const prizes = await Prize.find();   // all available prizes
+    const prizes = await Prize.find({ veselica_id: req.params.id_veselica });
+    const tickets = await Ticket.find({ veselica_id: req.params.id_veselica });
 
     const winners = [];
 
@@ -34,7 +34,7 @@ exports.createDraw = async (req, res) => {
       tickets.splice(winnerIndex, 1); // remove chosen ticket
     });
 
-    const draw = await Draw.create({ date: new Date(), winners });
+    const draw = await Draw.create({ date: new Date(), winners, veselica_id: req.params.id_veselica });
 
     // Send log to RabbitMQ
     await sendLog(

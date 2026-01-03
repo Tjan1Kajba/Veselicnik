@@ -17,7 +17,7 @@ module.exports = async function authenticateToken(req, res, next) {
       return res.status(401).json({ error: "Invalid Authorization format" });
     }
 
-    // 🔗 Call Python auth service
+    // call auth service
     const response = await axios.post(AUTH_SERVICE_URL, {
       token,
     });
@@ -26,7 +26,7 @@ module.exports = async function authenticateToken(req, res, next) {
       return res.status(401).json({ error: "Invalid token" });
     }
 
-    // ✅ Attach verified user info to request
+    // attach verified user info to request
     req.user = {
       id: response.data.user_id,
       username: response.data.username,
