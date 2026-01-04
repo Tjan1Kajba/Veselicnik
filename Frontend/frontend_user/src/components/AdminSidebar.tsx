@@ -10,6 +10,7 @@ import {
   FaUtensils,
   FaShoppingCart,
   FaMusic,
+  FaSearch,
 } from "react-icons/fa";
 import { AdminSidebarProps } from "../types";
 
@@ -66,6 +67,12 @@ export default function AdminSidebar({ user, handleLogout, activeItem = 'profil'
             <FaMusic size={20} />
           </span>
           <span className="nav-text">Glasba</span>
+        </Link>
+        <Link href="/izgubljeni-najdeni" className={`nav-item ${activeItem === 'izgubljeni' ? 'active' : ''}`}>
+          <span className="nav-icon">
+            <FaSearch size={20} />
+          </span>
+          <span className="nav-text">Izgubljeno</span>
         </Link>
       </nav>
 

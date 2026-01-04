@@ -68,6 +68,7 @@ const itemSchema = new mongoose.Schema(
     type: { type: String, enum: ["lost", "found"], required: true },
     name: String,
     description: String,
+    user_id: { type: String, required: true },
   },
   { timestamps: true }
 );
@@ -176,7 +177,7 @@ app.post("/lost",
   async (req, res) => {
 
     try {
-      const item = await Item.create({ type: "lost", ...req.body });
+      const item = await Item.create({ type: "lost", user_id: req.user.id, ...req.body });
 
       // Send log to RabbitMQ
       await sendLog(
@@ -336,13 +337,9 @@ app.get("/lost/:id",
 app.put("/lost/:id",
   authenticateToken,
  async (req, res) => {
-  const item = await Item.findOneAndUpdate(
-    { _id: req.params.id, type: "lost" },
-    req.body,
-    { new: true }
-  );
-  if (!item) {
-    
+  const item = await Item.findById(req.params.id);
+  if (!item || item.type !== "lost") {
+
   // Send log to RabbitMQ
     await sendLog(
       "INFO",
@@ -356,7 +353,27 @@ app.put("/lost/:id",
     return res.status(404).json({ message: "Predmet ne obstaja." });
   }
 
-  
+  if (item.user_id !== req.user.id && req.user.userType !== "admin") {
+
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "Not authorized",
+      req.correlationId
+    );
+
+    return res.status(403).json({ error: "Not authorized" });
+  }
+
+  const updatedItem = await Item.findOneAndUpdate(
+    { _id: req.params.id, type: "lost" },
+    req.body,
+    { new: true }
+  );
+
   // Send log to RabbitMQ
     await sendLog(
       "INFO",
@@ -367,7 +384,7 @@ app.put("/lost/:id",
       req.correlationId
     );
 
-  res.json(item);
+  res.json(updatedItem);
 });
 
 /**
@@ -393,13 +410,9 @@ app.put("/lost/:id",
 app.delete("/lost/:id",
   authenticateToken,
  async (req, res) => {
-  const result = await Item.findOneAndDelete({
-    _id: req.params.id,
-    type: "lost",
-  });
+  const item = await Item.findById(req.params.id);
+  if (!item || item.type !== "lost") {
 
-  if (!result){
-      
   // Send log to RabbitMQ
     await sendLog(
       "INFO",
@@ -412,7 +425,27 @@ app.delete("/lost/:id",
 
     return res.status(404).json({ message: "Predmet ne obstaja." });
   }
-    
+
+  if (item.user_id !== req.user.id && req.user.userType !== "admin") {
+
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "Not authorized",
+      req.correlationId
+    );
+
+    return res.status(403).json({ error: "Not authorized" });
+  }
+
+  const result = await Item.findOneAndDelete({
+    _id: req.params.id,
+    type: "lost",
+  });
+
   // Send log to RabbitMQ
     await sendLog(
       "INFO",
@@ -564,12 +597,8 @@ app.delete(
     try {
       const { id } = req.params;
 
-      const deletedItem = await Item.findOneAndDelete({
-        _id: id,
-        type: "found",
-      });
-
-      if (!deletedItem) {
+      const item = await Item.findById(id);
+      if (!item || item.type !== "found") {
 
   // Send log to RabbitMQ
     await sendLog(
@@ -584,6 +613,25 @@ app.delete(
         return res.status(404).json({ error: "Found item not found" });
       }
 
+      if (item.user_id !== req.user.id && req.user.userType !== "admin") {
+
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "Not authorized",
+      req.correlationId
+    );
+
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const deletedItem = await Item.findOneAndDelete({
+        _id: id,
+        type: "found",
+      });
 
   // Send log to RabbitMQ
     await sendLog(
@@ -685,13 +733,8 @@ app.put(
         });
       }
 
-      const updatedItem = await Item.findOneAndUpdate(
-  { _id: id, type: "found" },
-  { name, description, veselica_id },
-  { new: true, runValidators: true }
-);
-
-      if (!updatedItem) {
+      const item = await Item.findById(id);
+      if (!item || item.type !== "found") {
 
   // Send log to RabbitMQ
     await sendLog(
@@ -705,6 +748,27 @@ app.put(
 
         return res.status(404).json({ error: "Found item not found" });
       }
+
+      if (item.user_id !== req.user.id && req.user.userType !== "admin") {
+
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "Not authorized",
+      req.correlationId
+    );
+
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const updatedItem = await Item.findOneAndUpdate(
+  { _id: id, type: "found" },
+  { name, description, veselica_id },
+  { new: true, runValidators: true }
+);
 
 
   // Send log to RabbitMQ
@@ -784,9 +848,8 @@ app.post("/found",
   const { name, description, userId, veselica_id } = req.body;
 
   try {
-    const foundItem = await Item.create({ type: "found", name, description, veselica_id });
+    const foundItem = await Item.create({ type: "found", name, description, user_id: req.user.id, veselica_id });
 
-  
   // Send log to RabbitMQ
     await sendLog(
       "INFO",
@@ -803,7 +866,7 @@ app.post("/found",
 
   } catch (err) {
     console.error(err.message);
-      
+
   // Send log to RabbitMQ
     await sendLog(
       "INFO",
@@ -865,7 +928,7 @@ app.post("/foundAndOrderFood",
 
   try {
     // create the found item
-    const foundItem = await Item.create({ type: "found", name, description, veselica_id });
+    const foundItem = await Item.create({ type: "found", name, description, user_id: req.user.id, veselica_id });
 
     let foodOrderResponse = null;
     try {

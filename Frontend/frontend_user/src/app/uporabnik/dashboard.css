@@ -642,9 +642,10 @@ body {
 .profile-card,
 .section-card {
   border-radius: 10px;
-  padding: 0rem;
+  padding: 20px;
   margin-bottom: 1.5rem;
   overflow: hidden;
+
 }
 
 .section-card {

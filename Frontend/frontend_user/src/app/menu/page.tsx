@@ -18,6 +18,7 @@ import {
   FaUsers as FaUsersIcon,
   FaTrash,
   FaUtensils,
+  FaTimes,
 } from "react-icons/fa";
 import "../uporabnik/dashboard.css";
 import { showToast } from "../../utils/toast";
@@ -276,7 +277,7 @@ const MenuPage = () => {
                 boxShadow: "0 8px 32px rgba(237, 132, 88, 0.15)",
               }}
             >
-              <div className="card-header">
+              <div className="card-header" style={{ position: "relative" }}>
                 <div
                   style={{
                     display: "flex",
@@ -325,6 +326,38 @@ const MenuPage = () => {
                     </p>
                   </div>
                 </div>
+
+                {/* Close X button */}
+                <button
+                  onClick={() => setShowCreateForm(false)}
+                  style={{
+                    position: "absolute",
+                    top: "1rem",
+                    right: "1rem",
+                    background: "var(--color-input-bg)",
+                    border: "2px solid var(--color-border)",
+                    borderRadius: "8px",
+                    width: "36px",
+                    height: "36px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                    color: "var(--color-text-light)",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "var(--color-border)";
+                    e.currentTarget.style.color = "var(--color-error)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "var(--color-input-bg)";
+                    e.currentTarget.style.color = "var(--color-text-light)";
+                  }}
+                  title="Zapri"
+                >
+                  <FaTimes size={16} />
+                </button>
               </div>
 
               <form

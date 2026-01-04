@@ -25,6 +25,7 @@ interface LostItem {
   name: string;
   description: string;
   veselica_id: string;
+  user_id: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -35,6 +36,7 @@ interface FoundItem {
   name: string;
   description: string;
   veselica_id: string;
+  user_id: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -364,6 +366,15 @@ const LostAndFoundPage = () => {
       food_name: "",
     });
     setShowAddForm(true);
+  };
+
+  const canEditOrDeleteItem = (item: LostItem | FoundItem) => {
+    // Admins can edit/delete all items
+    if (user?.tip_uporabnika === "admin") {
+      return true;
+    }
+    // Regular users can only edit/delete items they created
+    return item.user_id === user?.id;
   };
 
   if (loading)
@@ -899,22 +910,24 @@ const LostAndFoundPage = () => {
                                 </span>
                               </div>
                             </div>
-                            <div className="item-actions">
-                              <button
-                                className="action-button edit"
-                                onClick={() => handleEdit(item)}
-                                title="Uredi"
-                              >
-                                <FaEdit size={16} />
-                              </button>
-                              <button
-                                className="action-button delete"
-                                onClick={() => handleDelete(item)}
-                                title="Izbriši"
-                              >
-                                <FaTrash size={16} />
-                              </button>
-                            </div>
+                            {canEditOrDeleteItem(item) && (
+                              <div className="item-actions">
+                                <button
+                                  className="action-button edit"
+                                  onClick={() => handleEdit(item)}
+                                  title="Uredi"
+                                >
+                                  <FaEdit size={16} />
+                                </button>
+                                <button
+                                  className="action-button delete"
+                                  onClick={() => handleDelete(item)}
+                                  title="Izbriši"
+                                >
+                                  <FaTrash size={16} />
+                                </button>
+                              </div>
+                            )}
                           </div>
 
                           {/* Content */}
@@ -1063,22 +1076,24 @@ const LostAndFoundPage = () => {
                                 </span>
                               </div>
                             </div>
-                            <div className="item-actions">
-                              <button
-                                className="action-button edit"
-                                onClick={() => handleEdit(item)}
-                                title="Uredi"
-                              >
-                                <FaEdit size={16} />
-                              </button>
-                              <button
-                                className="action-button delete"
-                                onClick={() => handleDelete(item)}
-                                title="Izbriši"
-                              >
-                                <FaTrash size={16} />
-                              </button>
-                            </div>
+                            {canEditOrDeleteItem(item) && (
+                              <div className="item-actions">
+                                <button
+                                  className="action-button edit"
+                                  onClick={() => handleEdit(item)}
+                                  title="Uredi"
+                                >
+                                  <FaEdit size={16} />
+                                </button>
+                                <button
+                                  className="action-button delete"
+                                  onClick={() => handleDelete(item)}
+                                  title="Izbriši"
+                                >
+                                  <FaTrash size={16} />
+                                </button>
+                              </div>
+                            )}
                           </div>
 
                           {/* Content */}

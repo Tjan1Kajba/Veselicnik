@@ -107,7 +107,7 @@ export interface SidebarProps {
 }
 
 export interface AdminSidebarProps extends SidebarProps {
-  activeItem?: 'profil' | 'veselice' | 'upravljanje' | 'menu' | 'narocila' | 'glasba';
+  activeItem?: 'profil' | 'veselice' | 'upravljanje' | 'menu' | 'narocila' | 'glasba' | 'izgubljeni';
 }
 
 export interface UserSidebarProps extends SidebarProps {
