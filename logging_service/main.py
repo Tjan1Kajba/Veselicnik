@@ -43,7 +43,6 @@ def get_rabbitmq_connection():
     return connection
 
 def parse_log_message(log_message: str):
-    # Pattern: TIMESTAMP LEVEL URL Correlation: CORRELATION_ID [APP_NAME] - MESSAGE
     pattern = r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}) (\w+) (.+?) Correlation: ([a-f0-9-]+) \[(.+?)\] - (.+)'
     match = re.match(pattern, log_message)
     if match:
@@ -58,7 +57,6 @@ def parse_log_message(log_message: str):
             "message": message
         }
     else:
-        # If parsing fails, store as raw
         return {
             "timestamp": datetime.utcnow(),
             "level": "UNKNOWN",
@@ -114,7 +112,6 @@ async def get_logs(datumOd: str, datumDo: str):
         raise HTTPException(status_code=503, detail="Database not available")
 
     try:
-        # Parse dates, assume YYYY-MM-DD
         start_date = datetime.strptime(datumOd, '%Y-%m-%d')
         end_date = datetime.strptime(datumDo, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
 
@@ -125,7 +122,6 @@ async def get_logs(datumOd: str, datumDo: str):
             }
         }, {"_id": 0}).sort("timestamp", 1))
 
-        # Convert datetime to string for JSON serialization
         for log in logs:
             log['timestamp'] = log['timestamp'].isoformat()
 

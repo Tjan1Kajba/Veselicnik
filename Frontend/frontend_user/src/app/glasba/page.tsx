@@ -9,6 +9,7 @@ import {
   FaTrash,
   FaRedo,
   FaTrophy,
+  FaPlus,
 } from "react-icons/fa";
 import AdminSidebar from "../../components/AdminSidebar";
 import "../uporabnik/dashboard.css";
@@ -27,6 +28,12 @@ const GlasbaAdminPage = () => {
   const [allRequests, setAllRequests] = useState<MusicRequest[]>([]);
   const [veselice, setVeselice] = useState<any[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
+
+  // Form state for creating requests
+  const [selectedVeselicaId, setSelectedVeselicaId] = useState<string>("");
+  const [newSongName, setNewSongName] = useState("");
+  const [newArtist, setNewArtist] = useState("");
+  const [creatingRequest, setCreatingRequest] = useState(false);
 
   const fetchUser = () => {
     setLoading(true);
@@ -203,6 +210,61 @@ const GlasbaAdminPage = () => {
     }
   };
 
+  const handleCreateMusicRequest = async () => {
+    if (!selectedVeselicaId) {
+      showToast("Izberite veselico.", "error");
+      return;
+    }
+
+    if (!newSongName.trim()) {
+      showToast("Vnesite ime pesmi.", "error");
+      return;
+    }
+
+    setCreatingRequest(true);
+    try {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
+      }
+
+      const requestBody: any = {
+        song_name: newSongName.trim(),
+        id_veselica: selectedVeselicaId,
+      };
+      if (newArtist.trim()) {
+        requestBody.artist = newArtist.trim();
+      }
+
+      const res = await fetch("http://localhost:8004/music/requests", {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        const errorMessage = errorData.detail || errorData.message || errorData.error || "Napaka pri ustvarjanju glasbene želje.";
+        throw new Error(typeof errorMessage === 'string' ? errorMessage : "Napaka pri ustvarjanju glasbene želje.");
+      }
+
+      const data = await res.json();
+      showToast("Glasbena želja uspešno ustvarjena!", "success");
+      setSelectedVeselicaId("");
+      setNewSongName("");
+      setNewArtist("");
+      fetchMusicData(); // Refresh the data
+    } catch (err: any) {
+      showToast(err.message || "Napaka pri ustvarjanju glasbene želje.", "error");
+    } finally {
+      setCreatingRequest(false);
+    }
+  };
+
   const handleLogout = () => {
     fetch("http://localhost:8002/uporabnik/odjava", {
       method: "POST",
@@ -282,6 +344,160 @@ const GlasbaAdminPage = () => {
         </header>
 
         <div className="main-content">
+          {/* Create Request Form */}
+          <div
+            style={{
+              background: "var(--color-input-bg)",
+              borderRadius: "12px",
+              padding: "1.5rem",
+              marginBottom: "2rem",
+            }}
+          >
+            <h2
+              style={{
+                fontSize: "1.125rem",
+                fontWeight: 600,
+                margin: "0 0 1rem 0",
+                color: "var(--color-text)",
+              }}
+            >
+              Dodaj novo pesem
+            </h2>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: "1rem", alignItems: "flex-end" }}>
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.875rem",
+                    fontWeight: 500,
+                    color: "var(--color-text-light)",
+                    marginBottom: "0.5rem",
+                  }}
+                >
+                  Ime pesmi *
+                </label>
+                <input
+                  type="text"
+                  value={newSongName}
+                  onChange={(e) => setNewSongName(e.target.value)}
+                  placeholder="Vnesite ime pesmi"
+                  style={{
+                    width: "100%",
+                    padding: "0.75rem",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "8px",
+                    background: "var(--color-input-bg)",
+                    color: "var(--color-text)",
+                    fontSize: "1rem",
+                  }}
+                />
+              </div>
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.875rem",
+                    fontWeight: 500,
+                    color: "var(--color-text-light)",
+                    marginBottom: "0.5rem",
+                  }}
+                >
+                  Izvajalec
+                </label>
+                <input
+                  type="text"
+                  value={newArtist}
+                  onChange={(e) => setNewArtist(e.target.value)}
+                  placeholder="Vnesite izvajalca"
+                  style={{
+                    width: "100%",
+                    padding: "0.75rem",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "8px",
+                    background: "var(--color-input-bg)",
+                    color: "var(--color-text)",
+                    fontSize: "1rem",
+                  }}
+                />
+              </div>
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.875rem",
+                    fontWeight: 500,
+                    color: "var(--color-text-light)",
+                    marginBottom: "0.5rem",
+                  }}
+                >
+                  Na kateri veselici *
+                </label>
+                <select
+                  value={selectedVeselicaId}
+                  onChange={(e) => setSelectedVeselicaId(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "0.75rem",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "8px",
+                    background: "var(--color-input-bg)",
+                    color: "var(--color-text)",
+                    fontSize: "1rem",
+                  }}
+                >
+                  <option value="">Izberite veselico...</option>
+                  {veselice.map((veselica) => (
+                    <option key={veselica.id} value={veselica.id}>
+                      {veselica.ime_veselice} - {veselica.lokacija} ({new Date(veselica.cas).toLocaleDateString("sl-SI")})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                onClick={handleCreateMusicRequest}
+                disabled={creatingRequest || !selectedVeselicaId || !newSongName.trim()}
+                style={{
+                  padding: "0.75rem 1.5rem",
+                  fontSize: "1rem",
+                  fontWeight: 600,
+                  background: "var(--color-primary)",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "8px",
+                  cursor: creatingRequest || !selectedVeselicaId || !newSongName.trim() ? "not-allowed" : "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  opacity: creatingRequest || !selectedVeselicaId || !newSongName.trim() ? 0.6 : 1,
+                  minWidth: "120px",
+                  justifyContent: "center",
+                }}
+              >
+                {creatingRequest ? (
+                  <>
+                    <span
+                      style={{
+                        display: "inline-block",
+                        width: "16px",
+                        height: "16px",
+                        border: "2px solid white",
+                        borderTopColor: "transparent",
+                        borderRadius: "50%",
+                        animation: "spin 0.6s linear infinite",
+                      }}
+                    />
+                    Dodajam...
+                  </>
+                ) : (
+                  <>
+                    <FaPlus size={14} />
+                    Dodaj
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
           {/* Top Requests Section */}
           <div
             style={{
