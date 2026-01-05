@@ -10,6 +10,7 @@ import {
   FaRedo,
   FaTrophy,
   FaPlus,
+  FaTimes,
 } from "react-icons/fa";
 import AdminSidebar from "../../components/AdminSidebar";
 import "../uporabnik/dashboard.css";
@@ -34,6 +35,7 @@ const GlasbaAdminPage = () => {
   const [newSongName, setNewSongName] = useState("");
   const [newArtist, setNewArtist] = useState("");
   const [creatingRequest, setCreatingRequest] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
 
   const fetchUser = () => {
     setLoading(true);
@@ -338,189 +340,295 @@ const GlasbaAdminPage = () => {
 
       <div className="modern-main">
         <header className="main-header">
-          <h1 style={{ fontSize: "1.5rem", fontWeight: "600", color: "var(--color-text)" }}>
-            Upravljanje glasbenih želja
-          </h1>
+          <h1 className="main-title">Upravljanje glasbenih želja</h1>
+          <div className="header-badge">
+            <span className="badge-icon">
+              <FaMusic size={16} />
+            </span>
+            <span className="badge-text">Administrator</span>
+          </div>
         </header>
 
         <div className="main-content">
           {/* Create Request Form */}
-          <div
-            style={{
-              background: "var(--color-input-bg)",
-              borderRadius: "12px",
-              padding: "1.5rem",
-              marginBottom: "2rem",
-            }}
-          >
-            <h2
+          {showCreateForm && (
+            <div
+              className="profile-card"
               style={{
-                fontSize: "1.125rem",
-                fontWeight: 600,
-                margin: "0 0 1rem 0",
-                color: "var(--color-text)",
+                marginBottom: "1.5rem",
+                background:
+                  "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.98) 100%)",
+                border: "2px solid var(--color-primary-light)",
+                boxShadow: "0 8px 32px rgba(237, 132, 88, 0.15)",
               }}
             >
-              Dodaj novo pesem
-            </h2>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: "1rem", alignItems: "flex-end" }}>
-              <div>
-                <label
+              <div className="card-header" style={{ position: "relative" }}>
+                <div
                   style={{
-                    display: "block",
-                    fontSize: "0.875rem",
-                    fontWeight: 500,
-                    color: "var(--color-text-light)",
-                    marginBottom: "0.5rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.75rem",
                   }}
                 >
-                  Ime pesmi *
-                </label>
-                <input
-                  type="text"
-                  value={newSongName}
-                  onChange={(e) => setNewSongName(e.target.value)}
-                  placeholder="Vnesite ime pesmi"
-                  style={{
-                    width: "100%",
-                    padding: "0.75rem",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: "8px",
-                    background: "var(--color-input-bg)",
-                    color: "var(--color-text)",
-                    fontSize: "1rem",
-                  }}
-                />
-              </div>
-              <div>
-                <label
-                  style={{
-                    display: "block",
-                    fontSize: "0.875rem",
-                    fontWeight: 500,
-                    color: "var(--color-text-light)",
-                    marginBottom: "0.5rem",
-                  }}
-                >
-                  Izvajalec
-                </label>
-                <input
-                  type="text"
-                  value={newArtist}
-                  onChange={(e) => setNewArtist(e.target.value)}
-                  placeholder="Vnesite izvajalca"
-                  style={{
-                    width: "100%",
-                    padding: "0.75rem",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: "8px",
-                    background: "var(--color-input-bg)",
-                    color: "var(--color-text)",
-                    fontSize: "1rem",
-                  }}
-                />
-              </div>
-              <div>
-                <label
-                  style={{
-                    display: "block",
-                    fontSize: "0.875rem",
-                    fontWeight: 500,
-                    color: "var(--color-text-light)",
-                    marginBottom: "0.5rem",
-                  }}
-                >
-                  Na kateri veselici *
-                </label>
-                <select
-                  value={selectedVeselicaId}
-                  onChange={(e) => setSelectedVeselicaId(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "0.75rem",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: "8px",
-                    background: "var(--color-input-bg)",
-                    color: "var(--color-text)",
-                    fontSize: "1rem",
-                  }}
-                >
-                  <option value="">Izberite veselico...</option>
-                  {veselice.map((veselica) => (
-                    <option key={veselica.id} value={veselica.id}>
-                      {veselica.ime_veselice} - {veselica.lokacija} ({new Date(veselica.cas).toLocaleDateString("sl-SI")})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <button
-                onClick={handleCreateMusicRequest}
-                disabled={creatingRequest || !selectedVeselicaId || !newSongName.trim()}
-                style={{
-                  padding: "0.75rem 1.5rem",
-                  fontSize: "1rem",
-                  fontWeight: 600,
-                  background: "var(--color-primary)",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "8px",
-                  cursor: creatingRequest || !selectedVeselicaId || !newSongName.trim() ? "not-allowed" : "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.5rem",
-                  opacity: creatingRequest || !selectedVeselicaId || !newSongName.trim() ? 0.6 : 1,
-                  minWidth: "120px",
-                  justifyContent: "center",
-                }}
-              >
-                {creatingRequest ? (
-                  <>
-                    <span
+                  <div
+                    style={{
+                      width: "48px",
+                      height: "48px",
+                      borderRadius: "12px",
+                      background:
+                        "linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "white",
+                    }}
+                  >
+                    <FaPlus size={24} />
+                  </div>
+                  <div>
+                    <h2
                       style={{
-                        display: "inline-block",
-                        width: "16px",
-                        height: "16px",
-                        border: "2px solid white",
-                        borderTopColor: "transparent",
-                        borderRadius: "50%",
-                        animation: "spin 0.6s linear infinite",
+                        fontSize: "1.5rem",
+                        fontWeight: 700,
+                        margin: 0,
+                        background:
+                          "linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))",
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                        backgroundClip: "text",
                       }}
-                    />
-                    Dodajam...
-                  </>
-                ) : (
-                  <>
-                    <FaPlus size={14} />
-                    Dodaj
-                  </>
-                )}
-              </button>
+                    >
+                      Dodaj novo pesem
+                    </h2>
+                    <p
+                      style={{
+                        fontSize: "0.875rem",
+                        color: "var(--color-text-light)",
+                        margin: "0.25rem 0 0 0",
+                      }}
+                    >
+                      Izpolnite podatke za novo glasbeno željo
+                    </p>
+                  </div>
+                </div>
+
+                {/* Close X button */}
+                <button
+                  onClick={() => setShowCreateForm(false)}
+                  style={{
+                    position: "absolute",
+                    top: "1rem",
+                    right: "1rem",
+                    background: "var(--color-input-bg)",
+                    border: "2px solid var(--color-border)",
+                    borderRadius: "8px",
+                    width: "36px",
+                    height: "36px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                    color: "var(--color-text-light)",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "var(--color-border)";
+                    e.currentTarget.style.color = "var(--color-error)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "var(--color-input-bg)";
+                    e.currentTarget.style.color = "var(--color-text-light)";
+                  }}
+                  title="Zapri"
+                >
+                  <FaTimes size={16} />
+                </button>
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleCreateMusicRequest();
+                }}
+                style={{ marginTop: "2rem" }}
+              >
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "2rem",
+                    alignItems: "start",
+                  }}
+                >
+                  {/* Left Column - Main Fields */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+                    {/* Ime pesmi */}
+                    <div className="input-group">
+                      <label className="input-label">
+                        Ime pesmi{" "}
+                        <span style={{ color: "var(--color-error)" }}>*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={newSongName}
+                        onChange={(e) => setNewSongName(e.target.value)}
+                        className="text-input"
+                        placeholder="npr. Bohemian Rhapsody"
+                        style={{ width: "100%" }}
+                      />
+                    </div>
+
+                    {/* Na kateri veselici */}
+                    <div className="input-group">
+                      <label className="input-label">
+                        Na kateri veselici{" "}
+                        <span style={{ color: "var(--color-error)" }}>*</span>
+                      </label>
+                      <select
+                        required
+                        value={selectedVeselicaId}
+                        onChange={(e) => setSelectedVeselicaId(e.target.value)}
+                        className="text-input"
+                        style={{ width: "100%" }}
+                      >
+                        <option value="">Izberite veselico...</option>
+                        {veselice.map((veselica) => (
+                          <option key={veselica.id} value={veselica.id}>
+                            {veselica.ime_veselice} - {veselica.lokacija} ({new Date(veselica.cas).toLocaleDateString("sl-SI")})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Right Column - Description and Buttons */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", justifyContent: "space-between", height: "100%" }}>
+                    {/* Izvajalec */}
+                    <div className="input-group" style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+                      <label className="input-label">Izvajalec</label>
+                      <input
+                        type="text"
+                        value={newArtist}
+                        onChange={(e) => setNewArtist(e.target.value)}
+                        className="text-input"
+                        placeholder="npr. Queen"
+                        style={{
+                          width: "100%",
+                          resize: "vertical",
+                          fontFamily: "inherit",
+                          flex: 1,
+                          minHeight: "48px",
+                        }}
+                      />
+                    </div>
+
+                    {/* Buttons */}
+                    <div style={{ display: "flex", gap: "1rem" }}>
+                      <button
+                        type="submit"
+                        disabled={creatingRequest}
+                        className="modern-button primary"
+                        style={{
+                          flex: 1,
+                          padding: "1rem 2rem",
+                          fontSize: "1rem",
+                          fontWeight: 600,
+                          height: "48px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "0.5rem",
+                        }}
+                      >
+                        {creatingRequest ? (
+                          <>
+                            <span
+                              style={{
+                                display: "inline-block",
+                                width: "16px",
+                                height: "16px",
+                                border: "2px solid white",
+                                borderTopColor: "transparent",
+                                borderRadius: "50%",
+                                animation: "spin 0.6s linear infinite",
+                              }}
+                            />
+                            Dodajam...
+                          </>
+                        ) : (
+                          <>
+                            <FaPlus size={16} />
+                            Dodaj pesem
+                          </>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowCreateForm(false)}
+                        style={{
+                          flex: 1,
+                          padding: "1rem 2rem",
+                          marginTop: "8px",
+                          fontSize: "1rem",
+                          fontWeight: 600,
+                          background: "var(--color-input-bg)",
+                          color: "var(--color-text)",
+                          border: "2px solid var(--color-border)",
+                          borderRadius: "8px",
+                          cursor: "pointer",
+                          transition: "all 0.2s",
+                          height: "48px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = "var(--color-border)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background =
+                            "var(--color-input-bg)";
+                        }}
+                      >
+                        Prekliči
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </form>
             </div>
-          </div>
+          )}
 
           {/* Top Requests Section */}
-          <div
-            style={{
-              background: "var(--color-input-bg)",
-              borderRadius: "12px",
-              padding: "2rem",
-              marginBottom: "2rem",
-            }}
-          >
-            <h2
-              style={{
-                fontSize: "1.25rem",
-                fontWeight: 600,
-                margin: "0 0 1.5rem 0",
-                color: "var(--color-text)",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-              }}
-            >
-              <FaTrophy size={20} color="#FFD700" />
-              Najbolj priljubljene pesmi
-            </h2>
+          <div className="profile-card">
+            <div className="card-header">
+              <h2 className="card-title">
+                <span className="title-icon">
+                  <FaTrophy size={20} color="#FFD700" />
+                </span>
+                Najbolj priljubljene pesmi
+              </h2>
+              <div
+                style={{ display: "flex", gap: "1rem", alignItems: "center" }}
+              >
+                <span className="badge">Top glasbene želje</span>
+                <button
+                  onClick={() => setShowCreateForm(!showCreateForm)}
+                  className="modern-button"
+                  style={{
+                    padding: "0.5rem 1rem",
+                    fontSize: "0.875rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <FaPlus size={14} />
+                  Nova pesem
+                </button>
+              </div>
+            </div>
 
             {loadingRequests ? (
               <div style={{ textAlign: "center", padding: "2rem" }}>

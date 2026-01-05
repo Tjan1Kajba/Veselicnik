@@ -327,7 +327,7 @@ const UserProfile = () => {
 
         <div className="main-content">
           {/* Osebni podatki - Read Only */}
-          <section className="content-section">
+          <div className="profile-card">
             <div className="section-header">
               <h2 className="section-title">
                 <span className="title-icon">
@@ -337,20 +337,18 @@ const UserProfile = () => {
               </h2>
               <span className="section-badge">Samo za ogled</span>
             </div>
-            <div className="profile-card">
-              <div className="profile-grid">
-                {displayData.map(({ key, value, displayName }) => (
-                  <div key={key} className="profile-field">
-                    <div className="field-header">
-                      <span className="field-label">{displayName}</span>
-                      <span className="field-type">{getDataType(value)}</span>
-                    </div>
-                    <div className="field-value">{formatValue(key, value)}</div>
+            <div className="profile-grid">
+              {displayData.map(({ key, value, displayName }) => (
+                <div key={key} className="profile-field">
+                  <div className="field-header">
+                    <span className="field-label">{displayName}</span>
+                    <span className="field-type">{getDataType(value)}</span>
                   </div>
-                ))}
-              </div>
+                  <div className="field-value">{formatValue(key, value)}</div>
+                </div>
+              ))}
             </div>
-          </section>
+          </div>
 
           {/* Posodobi podatke in Sprememba gesla - Accordion */}
           <div className="form-sections-grid">
