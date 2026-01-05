@@ -11,6 +11,8 @@ import {
   FaShoppingCart,
   FaMusic,
   FaSearch,
+  FaGift,
+  FaDice,
 } from "react-icons/fa";
 import { AdminSidebarProps } from "../types";
 
@@ -36,13 +38,13 @@ export default function AdminSidebar({ user, handleLogout, activeItem = 'profil'
           <span className="nav-icon">
             <FaClipboardList size={20} />
           </span>
-          <span className="nav-text">Profil</span>
+          <span className="nav-text">Uporabniški profil</span>
         </Link>
         <Link href="/veselice-pregled" className={`nav-item ${activeItem === 'veselice' ? 'active' : ''}`}>
           <span className="nav-icon">
             <FaUsers size={20} />
           </span>
-          <span className="nav-text">Veselice</span>
+          <span className="nav-text">Vse veselice</span>
         </Link>
         <Link href="/veselice" className={`nav-item ${activeItem === 'upravljanje' ? 'active' : ''}`}>
           <span className="nav-icon">
@@ -54,7 +56,7 @@ export default function AdminSidebar({ user, handleLogout, activeItem = 'profil'
           <span className="nav-icon">
             <FaUtensils size={20} />
           </span>
-          <span className="nav-text">Meni</span>
+          <span className="nav-text">Upravljanje menija</span>
         </Link>
         <Link href="/narocila" className={`nav-item ${activeItem === 'narocila' ? 'active' : ''}`}>
           <span className="nav-icon">
@@ -73,6 +75,18 @@ export default function AdminSidebar({ user, handleLogout, activeItem = 'profil'
             <FaSearch size={20} />
           </span>
           <span className="nav-text">Izgubljeno</span>
+        </Link>
+        <Link href="/prizes" className={`nav-item ${activeItem === 'prizes' ? 'active' : ''}`}>
+          <span className="nav-icon">
+            <FaGift size={20} />
+          </span>
+          <span className="nav-text">Upravljanje nagrad</span>
+        </Link>
+        <Link href="/draws" className={`nav-item ${activeItem === 'draws' ? 'active' : ''}`}>
+          <span className="nav-icon">
+            <FaDice size={20} />
+          </span>
+          <span className="nav-text">Upravljanje žrebanj</span>
         </Link>
       </nav>
 

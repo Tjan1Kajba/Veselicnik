@@ -279,6 +279,18 @@ router.delete("/prizes/:id", authenticateToken, Prizes.deletePrize);
 
 /**
  * @swagger
+ * /draws:
+ *   get:
+ *     summary: Seznam vseh žrebanj
+ *     tags: [Draws]
+ *     responses:
+ *       200:
+ *         description: OK
+ */
+router.get("/draws", Draws.getDraws);
+
+/**
+ * @swagger
  * /draws/{id_veselica}:
  *   post:
  *     summary: Ustvari novo žrebanje

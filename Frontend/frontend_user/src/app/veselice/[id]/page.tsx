@@ -22,6 +22,9 @@ import {
   FaHeart,
   FaTrash,
   FaRedo,
+  FaGift,
+  FaDice,
+  FaSpinner,
 } from "react-icons/fa";
 import "../../uporabnik/dashboard.css";
 import { showToast } from "../../../utils/toast";
@@ -56,6 +59,15 @@ const VeselicaDetailPage = () => {
   const [votingRequests, setVotingRequests] = useState<Set<string>>(new Set());
   const [newSongName, setNewSongName] = useState("");
   const [newArtist, setNewArtist] = useState("");
+
+  // Prizes state
+  const [prizes, setPrizes] = useState<any[]>([]);
+  const [loadingPrizes, setLoadingPrizes] = useState(false);
+
+  // Tickets state
+  const [userTickets, setUserTickets] = useState<any[]>([]);
+  const [loadingTickets, setLoadingTickets] = useState(false);
+  const [buyingTicket, setBuyingTicket] = useState(false);
 
   const fetchUser = () => {
     setLoading(true);
@@ -102,6 +114,8 @@ const VeselicaDetailPage = () => {
       fetchVeselica();
       fetchMenuItems();
       fetchMusicRequests();
+      fetchPrizes();
+      fetchUserTickets();
     }
   }, [user, veselicaId]);
 
@@ -371,6 +385,148 @@ const VeselicaDetailPage = () => {
       showToast(typeof errorMessage === 'string' ? errorMessage : "Napaka pri pridobivanju glasbenih želja.", "error");
     } finally {
       setLoadingRequests(false);
+    }
+  };
+
+  const fetchPrizes = async () => {
+    setLoadingPrizes(true);
+    try {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
+      }
+
+      const res = await fetch(`http://localhost:9001/prizes/${veselicaId}`, {
+        method: "GET",
+        headers,
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        throw new Error("Neuspešno pridobivanje nagrad.");
+      }
+
+      const data = await res.json();
+      setPrizes(data);
+    } catch (err: any) {
+      const errorMessage = err.message || err.detail || err.error || "Napaka pri pridobivanju nagrad.";
+      showToast(typeof errorMessage === 'string' ? errorMessage : "Napaka pri pridobivanju nagrad.", "error");
+    } finally {
+      setLoadingPrizes(false);
+    }
+  };
+
+  const fetchUserTickets = async () => {
+    setLoadingTickets(true);
+    try {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
+      }
+
+      const res = await fetch("http://localhost:9001/tickets", {
+        method: "GET",
+        headers,
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        throw new Error("Neuspešno pridobivanje srečk.");
+      }
+
+      const data = await res.json();
+      setUserTickets(data);
+    } catch (err: any) {
+      const errorMessage = err.message || err.detail || err.error || "Napaka pri pridobivanju srečk.";
+      showToast(typeof errorMessage === 'string' ? errorMessage : "Napaka pri pridobivanju srečk.", "error");
+    } finally {
+      setLoadingTickets(false);
+    }
+  };
+
+  const handleBuyTicket = async () => {
+    setBuyingTicket(true);
+    try {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
+      }
+
+      const res = await fetch("http://localhost:9001/tickets", {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({ veselica_id: veselicaId }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Napaka pri nakupu srečke.");
+      }
+
+      showToast("Srečka uspešno kupljena!", "success");
+      fetchUserTickets();
+    } catch (err: any) {
+      showToast(err.message || "Napaka pri nakupu srečke.", "error");
+    } finally {
+      setBuyingTicket(false);
+    }
+  };
+
+  const handleBuyTicketWithMusic = async () => {
+    if (!newSongName.trim()) {
+      showToast("Vnesite ime pesmi.", "error");
+      return;
+    }
+
+    setBuyingTicket(true);
+    try {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
+      }
+
+      const requestBody: any = {
+        veselica_id: veselicaId,
+        songName: newSongName.trim(),
+      };
+      if (newArtist.trim()) {
+        requestBody.artist = newArtist.trim();
+      }
+
+      const res = await fetch("http://localhost:9001/ticketsAndMusicRequest", {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Napaka pri nakupu srečke z glasbeno željo.");
+      }
+
+      showToast("Srečka in glasbena želja uspešno ustvarjeni!", "success");
+      setNewSongName("");
+      setNewArtist("");
+      fetchUserTickets();
+      fetchMusicRequests();
+    } catch (err: any) {
+      showToast(err.message || "Napaka pri nakupu srečke z glasbeno željo.", "error");
+    } finally {
+      setBuyingTicket(false);
     }
   };
 
@@ -1439,6 +1595,316 @@ const VeselicaDetailPage = () => {
                         </button>
                       </div>
                     )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Prizes Section */}
+            <div
+              style={{
+                padding: "1.5rem",
+                background: "var(--color-input-bg)",
+                borderRadius: "12px",
+                marginBottom: "2rem",
+              }}
+            >
+              <h3
+                style={{
+                  fontSize: "1.125rem",
+                  fontWeight: 600,
+                  margin: "0 0 1rem 0",
+                  color: "var(--color-text)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                }}
+              >
+                <FaGift size={20} />
+                Nagrade za to veselico
+              </h3>
+
+              {loadingPrizes ? (
+                <div style={{ textAlign: "center", padding: "2rem" }}>
+                  <p>Nalagam nagrade...</p>
+                </div>
+              ) : prizes.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "2rem" }}>
+                  <p style={{ color: "var(--color-text-light)" }}>
+                    Za to veselico še ni nagrad.
+                  </p>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    display: "grid",
+                    gap: "1rem",
+                    gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+                  }}
+                >
+                  {prizes.map((prize) => (
+                    <div
+                      key={prize._id}
+                      style={{
+                        background: "var(--color-bg)",
+                        borderRadius: "12px",
+                        padding: "1.5rem",
+                        border: "1px solid var(--color-border)",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "1rem",
+                        transition: "all 0.2s ease",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = "translateY(-2px)";
+                        e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.1)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = "none";
+                        e.currentTarget.style.boxShadow = "none";
+                      }}
+                    >
+                      <div style={{ flex: 1 }}>
+                        <h4
+                          style={{
+                            fontSize: "1.125rem",
+                            fontWeight: 600,
+                            margin: "0 0 0.5rem 0",
+                            color: "var(--color-text)",
+                          }}
+                        >
+                          {prize.name}
+                        </h4>
+                        <p
+                          style={{
+                            fontSize: "0.875rem",
+                            color: "var(--color-primary)",
+                            margin: 0,
+                            fontWeight: 600,
+                          }}
+                        >
+                          Verjetnost: {(prize.probability * 100).toFixed(1)}%
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Tickets Section */}
+            {registered && (
+              <div
+                style={{
+                  padding: "1.5rem",
+                  background: "var(--color-input-bg)",
+                  borderRadius: "12px",
+                  marginBottom: "2rem",
+                }}
+              >
+                <h3
+                  style={{
+                    fontSize: "1.125rem",
+                    fontWeight: 600,
+                    margin: "0 0 1rem 0",
+                    color: "var(--color-text)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <FaDice size={20} />
+                  Moje srečke ({userTickets.filter(t => t.veselica_id === veselicaId).length})
+                </h3>
+
+                {loadingTickets ? (
+                  <div style={{ textAlign: "center", padding: "2rem" }}>
+                    <p>Nalagam srečke...</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* User's Tickets */}
+                    {userTickets.filter(t => t.veselica_id === veselicaId).length > 0 ? (
+                      <div style={{ marginBottom: "2rem" }}>
+                        <div
+                          style={{
+                            display: "grid",
+                            gap: "1rem",
+                            gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))",
+                          }}
+                        >
+                          {userTickets.filter(t => t.veselica_id === veselicaId).map((ticket) => (
+                            <div
+                              key={ticket._id}
+                              style={{
+                                background: "var(--color-bg)",
+                                borderRadius: "12px",
+                                padding: "1.5rem",
+                                border: "1px solid var(--color-border)",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: "0.5rem",
+                                transition: "all 0.2s ease",
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = "translateY(-2px)";
+                                e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.1)";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = "none";
+                                e.currentTarget.style.boxShadow = "none";
+                              }}
+                            >
+                              <div
+                                style={{
+                                  fontSize: "0.875rem",
+                                  color: "var(--color-text-light)",
+                                }}
+                              >
+                                Srečka #{ticket._id.slice(-6)}
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: "0.75rem",
+                                  color: "var(--color-text-light)",
+                                }}
+                              >
+                                Kupljeno: {formatDate(ticket.createdAt)}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ marginBottom: "2rem" }}>
+                        <p style={{ color: "var(--color-text-light)", textAlign: "center" }}>
+                          Še nimate srečk za to veselico.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Buy Ticket Section */}
+                    <div
+                      style={{
+                        borderTop: "1px solid var(--color-border)",
+                        paddingTop: "2rem",
+                      }}
+                    >
+                      <h4
+                        style={{
+                          fontSize: "1rem",
+                          fontWeight: 600,
+                          margin: "0 0 1rem 0",
+                          color: "var(--color-text)",
+                        }}
+                      >
+                        Kupi novo srečko
+                      </h4>
+
+                      <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+                        <button
+                          onClick={handleBuyTicket}
+                          disabled={buyingTicket}
+                          className="modern-button primary"
+                          style={{
+                            padding: "0.75rem 1.5rem",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.5rem",
+                            fontSize: "0.875rem",
+                          }}
+                        >
+                          {buyingTicket ? (
+                            <>
+                              <FaSpinner size={14} />
+                              Kupujem...
+                            </>
+                          ) : (
+                            <>
+                              <FaDice size={14} />
+                              Kupi srečko
+                            </>
+                          )}
+                        </button>
+
+                        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                          <span style={{ fontSize: "0.875rem", color: "var(--color-text-light)" }}>
+                            ali
+                          </span>
+                          <button
+                            onClick={handleBuyTicketWithMusic}
+                            disabled={buyingTicket}
+                            className="modern-button"
+                            style={{
+                              padding: "0.75rem 1.5rem",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "0.5rem",
+                              fontSize: "0.875rem",
+                              background: "var(--color-secondary)",
+                            }}
+                          >
+                            {buyingTicket ? (
+                              <>
+                                <FaSpinner size={14} />
+                                Kupujem...
+                              </>
+                            ) : (
+                              <>
+                                <FaMusic size={14} />
+                                Srečka + glasbena želja
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Music Request Form for combined purchase */}
+                      {newSongName && (
+                        <div
+                          style={{
+                            marginTop: "1rem",
+                            padding: "1rem",
+                            background: "var(--color-bg)",
+                            borderRadius: "8px",
+                            border: "1px solid var(--color-border)",
+                          }}
+                        >
+                          <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+                            <div style={{ flex: 1 }}>
+                              <input
+                                type="text"
+                                value={newSongName}
+                                onChange={(e) => setNewSongName(e.target.value)}
+                                placeholder="Ime pesmi"
+                                style={{
+                                  width: "100%",
+                                  padding: "0.5rem",
+                                  border: "1px solid var(--color-border)",
+                                  borderRadius: "4px",
+                                  fontSize: "0.875rem",
+                                }}
+                              />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <input
+                                type="text"
+                                value={newArtist}
+                                onChange={(e) => setNewArtist(e.target.value)}
+                                placeholder="Izvajalec (neobvezno)"
+                                style={{
+                                  width: "100%",
+                                  padding: "0.5rem",
+                                  border: "1px solid var(--color-border)",
+                                  borderRadius: "4px",
+                                  fontSize: "0.875rem",
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </>
                 )}
               </div>

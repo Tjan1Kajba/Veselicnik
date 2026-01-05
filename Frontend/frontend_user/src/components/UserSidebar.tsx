@@ -34,13 +34,13 @@ export default function UserSidebar({ user, handleLogout, activeItem = 'profil' 
           <span className="nav-icon">
             <FaClipboardList size={20} />
           </span>
-          <span className="nav-text">Profil</span>
+          <span className="nav-text">Uporabniški profil</span>
         </Link>
         <Link href="/veselice-pregled" className={`nav-item ${activeItem === 'veselice' ? 'active' : ''}`}>
           <span className="nav-icon">
             <FaUsers size={20} />
           </span>
-          <span className="nav-text">Veselice</span>
+          <span className="nav-text">Vse veselice</span>
         </Link>
         <Link href="/narocila" className={`nav-item ${activeItem === 'narocila' ? 'active' : ''}`}>
           <span className="nav-icon">

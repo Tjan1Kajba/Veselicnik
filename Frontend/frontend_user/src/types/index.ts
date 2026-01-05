@@ -107,9 +107,59 @@ export interface SidebarProps {
 }
 
 export interface AdminSidebarProps extends SidebarProps {
-  activeItem?: 'profil' | 'veselice' | 'upravljanje' | 'menu' | 'narocila' | 'glasba' | 'izgubljeni';
+  activeItem?: 'profil' | 'veselice' | 'upravljanje' | 'menu' | 'narocila' | 'glasba' | 'izgubljeni' | 'prizes' | 'draws';
 }
 
 export interface UserSidebarProps extends SidebarProps {
-  activeItem?: 'profil' | 'veselice' | 'narocila' | 'izgubljeni';
+  activeItem?: 'profil' | 'veselice' | 'narocila' | 'izgubljeni' | 'srečke';
+}
+
+export interface Prize {
+  _id: string;
+  name: string;
+  veselica_id: string;
+  probability: number;
+  createdAt: string;
+}
+
+export interface Ticket {
+  _id: string;
+  userId: string;
+  veselica_id: string;
+  createdAt: string;
+}
+
+export interface DrawWinner {
+  ticketId: string;
+  prizeId: string;
+  prize?: Prize;
+  user?: UserData;
+}
+
+export interface Draw {
+  _id: string;
+  veselica_id: string;
+  date: string;
+  winners: DrawWinner[];
+}
+
+export interface CreatePrizeRequest {
+  name: string;
+  probability: number;
+  veselica_id: string;
+}
+
+export interface UpdatePrizeRequest {
+  name?: string;
+  probability?: number;
+}
+
+export interface CreateTicketRequest {
+  veselica_id: string;
+}
+
+export interface CreateTicketAndMusicRequest {
+  veselica_id: string;
+  songName: string;
+  artist?: string;
 }

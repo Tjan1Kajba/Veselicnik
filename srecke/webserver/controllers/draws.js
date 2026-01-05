@@ -15,6 +15,38 @@ function pickPrize(prizes) {
   return null; // no prize
 }
 
+exports.getDraws = async (req, res) => {
+  try {
+    const draws = await Draw.find().sort({ date: -1 });
+
+    // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      true,
+      "",
+      req.correlationId
+    );
+
+    res.json(draws);
+  } catch (err) {
+    console.error(err);
+
+    // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "",
+      req.correlationId
+    );
+
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
 exports.createDraw = async (req, res) => {
   try {
     const prizes = await Prize.find({ veselica_id: req.params.id_veselica });
