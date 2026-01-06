@@ -7,7 +7,9 @@ export function showToast(message: string, type: 'success' | 'error' = 'error') 
     duration: 4000,
     gravity: "top",
     position: "right",
-    backgroundColor: type === 'error' ? "#e74c3c" : "#27ae60",
+    style: {
+      background: type === 'error' ? "#e74c3c" : "#27ae60",
+    },
     stopOnFocus: true,
     close: true,
   }).showToast();

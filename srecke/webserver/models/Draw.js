@@ -6,6 +6,7 @@ const DrawSchema = new mongoose.Schema({
   winners: [
     {
       ticketId: { type: mongoose.Schema.Types.ObjectId, ref: "Ticket" },
+      userId: { type: String, required: true },
       prizeId: { type: mongoose.Schema.Types.ObjectId, ref: "Prize" }
     }
   ]

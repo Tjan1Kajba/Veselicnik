@@ -314,9 +314,16 @@ const DrawsManagementPage = () => {
     return veselica ? veselica.ime_veselice : "Neznana veselica";
   };
 
-  const getPrizeName = (prizeId: string) => {
-    const prize = prizes.find(p => p._id === prizeId);
-    return prize ? prize.name : "Neznana nagrada";
+  const getPrizeName = (prizeId: string | any) => {
+    // Handle both string ID and populated Prize object
+    if (typeof prizeId === 'string') {
+      const prize = prizes.find(p => p._id === prizeId);
+      return prize ? prize.name : "Neznana nagrada";
+    } else if (prizeId && typeof prizeId === 'object' && prizeId.name) {
+      // prizeId is a populated Prize object
+      return prizeId.name;
+    }
+    return "Neznana nagrada";
   };
 
   const formatDate = (dateString: string) => {
@@ -806,7 +813,7 @@ const DrawsManagementPage = () => {
                         margin: 0,
                       }}
                     >
-                      Srečka ID: {winner.ticketId}
+                      Srečka ID: {winner.ticketId && typeof winner.ticketId === 'object' ? winner.ticketId._id : winner.ticketId}
                     </p>
                   </div>
                 ))}

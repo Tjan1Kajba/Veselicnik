@@ -382,8 +382,8 @@ body {
 }
 
 .user-avatar {
-  width: 60px;
-  height: 60px;
+  width: 70px;
+  height: 70px;
   border-radius: 50%;
   background: linear-gradient(
     135deg,
@@ -394,6 +394,7 @@ body {
   align-items: center;
   justify-content: center;
   margin-bottom: 1rem;
+  border: 3px solid white;
 }
 
 .avatar-icon {

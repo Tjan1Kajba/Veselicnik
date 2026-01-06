@@ -441,7 +441,9 @@ const VeselicaDetailPage = () => {
       }
 
       const data = await res.json();
-      setUserTickets(data);
+      // Filter tickets by current user only
+      const userTicketsOnly = data.filter((ticket: any) => ticket.userId === user?.id);
+      setUserTickets(userTicketsOnly);
     } catch (err: any) {
       const errorMessage = err.message || err.detail || err.error || "Napaka pri pridobivanju srečk.";
       showToast(typeof errorMessage === 'string' ? errorMessage : "Napaka pri pridobivanju srečk.", "error");

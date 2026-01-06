@@ -111,7 +111,7 @@ export interface AdminSidebarProps extends SidebarProps {
 }
 
 export interface UserSidebarProps extends SidebarProps {
-  activeItem?: 'profil' | 'veselice' | 'narocila' | 'izgubljeni' | 'srečke';
+  activeItem?: 'profil' | 'veselice' | 'narocila' | 'izgubljeni' | 'srečke' | 'nagrade';
 }
 
 export interface Prize {
@@ -130,8 +130,9 @@ export interface Ticket {
 }
 
 export interface DrawWinner {
-  ticketId: string;
-  prizeId: string;
+  ticketId: string | any; // Can be string or populated Ticket object
+  userId: string;
+  prizeId: string | any; // Can be string or populated Prize object
   prize?: Prize;
   user?: UserData;
 }

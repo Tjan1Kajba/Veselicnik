@@ -1,5 +1,6 @@
 import Link from "next/link";
 import React from "react";
+import { useRouter } from "next/navigation";
 import {
   FaUser,
   FaSignOutAlt,
@@ -9,10 +10,12 @@ import {
   FaUsers,
   FaShoppingCart,
   FaSearch,
+  FaTrophy,
 } from "react-icons/fa";
 import { UserSidebarProps } from "../types";
 
 export default function UserSidebar({ user, handleLogout, activeItem = 'profil' }: UserSidebarProps) {
+  const router = useRouter();
   return (
     <div className="modern-sidebar">
       <div className="sidebar-header">
@@ -53,6 +56,12 @@ export default function UserSidebar({ user, handleLogout, activeItem = 'profil' 
             <FaSearch size={20} />
           </span>
           <span className="nav-text">Izgubljeno</span>
+        </Link>
+        <Link href="/moje-nagrade" className={`nav-item ${activeItem === 'nagrade' ? 'active' : ''}`}>
+          <span className="nav-icon">
+            <FaTrophy size={20} />
+          </span>
+          <span className="nav-text">Moje nagrade</span>
         </Link>
       </nav>
 
