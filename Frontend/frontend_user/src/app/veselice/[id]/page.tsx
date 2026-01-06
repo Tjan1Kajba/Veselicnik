@@ -68,6 +68,7 @@ const VeselicaDetailPage = () => {
   const [userTickets, setUserTickets] = useState<any[]>([]);
   const [loadingTickets, setLoadingTickets] = useState(false);
   const [buyingTicket, setBuyingTicket] = useState(false);
+  const [showMusicForm, setShowMusicForm] = useState(false);
 
   const fetchUser = () => {
     setLoading(true);
@@ -490,6 +491,11 @@ const VeselicaDetailPage = () => {
       return;
     }
 
+    if (!newArtist.trim()) {
+      showToast("Vnesite izvajalca.", "error");
+      return;
+    }
+
     setBuyingTicket(true);
     try {
       const headers: Record<string, string> = {
@@ -523,6 +529,7 @@ const VeselicaDetailPage = () => {
       showToast("Srečka in glasbena želja uspešno ustvarjeni!", "success");
       setNewSongName("");
       setNewArtist("");
+      setShowMusicForm(false);
       fetchUserTickets();
       fetchMusicRequests();
     } catch (err: any) {
@@ -1803,10 +1810,9 @@ const VeselicaDetailPage = () => {
                         Kupi novo srečko
                       </h4>
 
-                      <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+                      {!showMusicForm ? (
                         <button
-                          onClick={handleBuyTicket}
-                          disabled={buyingTicket}
+                          onClick={() => setShowMusicForm(true)}
                           className="modern-button primary"
                           style={{
                             padding: "0.75rem 1.5rem",
@@ -1816,53 +1822,10 @@ const VeselicaDetailPage = () => {
                             fontSize: "0.875rem",
                           }}
                         >
-                          {buyingTicket ? (
-                            <>
-                              <FaSpinner size={14} />
-                              Kupujem...
-                            </>
-                          ) : (
-                            <>
-                              <FaDice size={14} />
-                              Kupi srečko
-                            </>
-                          )}
+                          <FaDice size={14} />
+                          Kupi srečko
                         </button>
-
-                        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-                          <span style={{ fontSize: "0.875rem", color: "var(--color-text-light)" }}>
-                            ali
-                          </span>
-                          <button
-                            onClick={handleBuyTicketWithMusic}
-                            disabled={buyingTicket}
-                            className="modern-button"
-                            style={{
-                              padding: "0.75rem 1.5rem",
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "0.5rem",
-                              fontSize: "0.875rem",
-                              background: "var(--color-secondary)",
-                            }}
-                          >
-                            {buyingTicket ? (
-                              <>
-                                <FaSpinner size={14} />
-                                Kupujem...
-                              </>
-                            ) : (
-                              <>
-                                <FaMusic size={14} />
-                                Srečka + glasbena želja
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Music Request Form for combined purchase */}
-                      {newSongName && (
+                      ) : (
                         <div
                           style={{
                             marginTop: "1rem",
@@ -1872,7 +1835,27 @@ const VeselicaDetailPage = () => {
                             border: "1px solid var(--color-border)",
                           }}
                         >
-                          <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+                          <h5
+                            style={{
+                              fontSize: "0.875rem",
+                              fontWeight: 600,
+                              margin: "0 0 1rem 0",
+                              color: "var(--color-text)",
+                            }}
+                          >
+                            Glasbena želja
+                          </h5>
+                          <p
+                            style={{
+                              fontSize: "0.875rem",
+                              color: "var(--color-text-light)",
+                              margin: "0 0 1rem 0",
+                              lineHeight: 1.4,
+                            }}
+                          >
+                            Z vsakim nakupom srečke dobiš glasbeno željo za katero lahko tudi drugi uporabniki glasujejo. Z dovolj glasovi se bo na veselici izvajala.
+                          </p>
+                          <div style={{ display: "flex", gap: "1rem", alignItems: "center", marginBottom: "1rem" }}>
                             <div style={{ flex: 1 }}>
                               <input
                                 type="text"
@@ -1893,7 +1876,7 @@ const VeselicaDetailPage = () => {
                                 type="text"
                                 value={newArtist}
                                 onChange={(e) => setNewArtist(e.target.value)}
-                                placeholder="Izvajalec (neobvezno)"
+                                placeholder="Izvajalec"
                                 style={{
                                   width: "100%",
                                   padding: "0.5rem",
@@ -1903,6 +1886,52 @@ const VeselicaDetailPage = () => {
                                 }}
                               />
                             </div>
+                          </div>
+                          <div style={{ display: "flex", gap: "1rem", justifyContent: "flex-end" }}>
+                            <button
+                              onClick={() => {
+                                setShowMusicForm(false);
+                                setNewSongName("");
+                                setNewArtist("");
+                              }}
+                              style={{
+                                padding: "0.5rem 1rem",
+                                fontSize: "0.875rem",
+                                fontWeight: 600,
+                                background: "var(--color-input-bg)",
+                                color: "var(--color-text)",
+                                border: "2px solid var(--color-border)",
+                                borderRadius: "6px",
+                                cursor: "pointer",
+                              }}
+                            >
+                              Prekliči
+                            </button>
+                            <button
+                              onClick={handleBuyTicketWithMusic}
+                              disabled={buyingTicket || !newSongName.trim() || !newArtist.trim()}
+                              className="modern-button primary"
+                              style={{
+                                padding: "0.5rem 1rem",
+                                fontSize: "0.875rem",
+                                fontWeight: 600,
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "0.5rem",
+                              }}
+                            >
+                              {buyingTicket ? (
+                                <>
+                                  <FaSpinner size={14} />
+                                  Kupujem...
+                                </>
+                              ) : (
+                                <>
+                                  <FaDice size={14} />
+                                  Kupi srečko
+                                </>
+                              )}
+                            </button>
                           </div>
                         </div>
                       )}

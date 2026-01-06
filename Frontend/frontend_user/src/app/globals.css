@@ -284,3 +284,10 @@ p {
 .nav-icon {
   margin-top: 3px;
 }
+
+.toastify{
+
+border-radius: 10px !important;
+border: 1px solid black !important; 
+
+}
