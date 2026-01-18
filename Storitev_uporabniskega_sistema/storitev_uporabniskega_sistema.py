@@ -16,6 +16,8 @@ import jwt
 import pika
 import uuid
 import logging
+from dotenv import load_dotenv
+from pathlib import Path
 
 
 JWT_SECRET_KEY = os.getenv(
@@ -35,6 +37,16 @@ MONGODB_URL = os.getenv(
     'MONGODB_URL', 'mongodb://localhost:27017/uporabniski_sistem')
 SERVICE_HOST = os.getenv('SERVICE_HOST', '0.0.0.0')
 SERVICE_PORT = int(os.getenv('SERVICE_PORT', 8000))
+
+
+# Load repository root .env (one level above this service folder)
+try:
+    _env_path = Path(__file__).resolve().parents[1] / '.env'
+    if _env_path.exists():
+        load_dotenv(dotenv_path=_env_path)
+except Exception:
+    # avoid failing if dotenv isn't available in some environments
+    pass
 
 RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'rabbitmq')
 RABBITMQ_PORT = int(os.getenv('RABBITMQ_PORT', 5672))

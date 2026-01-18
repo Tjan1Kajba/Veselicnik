@@ -73,7 +73,7 @@ export default function StatsBlock({ isAdmin }: StatsBlockProps) {
   if (!isAdmin) return null;
 
   return (
-    <div style={{ marginTop: 40 }}>
+    <div style={{ marginTop: 40, paddingLeft: 20, paddingRight: 20 }}>
       <h2 className="section-title" style={{ marginBottom: 20 }}>
         <FaClipboardList /> Statistika API klicev
       </h2>

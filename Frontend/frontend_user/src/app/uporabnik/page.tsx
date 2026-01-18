@@ -356,7 +356,7 @@ const UserProfile = () => {
           </div>
 
           {/* Posodobi podatke in Sprememba gesla - Accordion */}
-          <div className="form-sections-grid">
+          <div className="form-sections-grid" style={{ paddingLeft: 20, paddingRight: 20 }}>
             {/* Posodobi podatke */}
             <div className="accordion-section">
               <div

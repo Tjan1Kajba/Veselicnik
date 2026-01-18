@@ -7,7 +7,9 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - MONGODB_URL=mongodb://user-mongo:27017/uporabniski_sistem
+      - MONGODB_URL=${USER_SERVICE_MONGODB_URL}
+    env_file:
+      - ../.env
     depends_on:
       user-mongo:
         condition: service_healthy
@@ -28,7 +30,9 @@ services:
     ports:
       - "27017:27017"
     environment:
-      - MONGO_INITDB_DATABASE=uporabniski_sistem
+      - MONGO_INITDB_DATABASE=${USER_MONGO_INITDB_DATABASE}
+    env_file:
+      - ../.env
     volumes:
       - mongodb_data:/data/db
     networks:
