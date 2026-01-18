@@ -942,10 +942,12 @@ app.post("/foundAndOrderFood",
         paid: true
       };
 
+      const correlationId = req.correlationId || req.headers['x-correlation-id'] || req.headers['X-Correlation-ID'];
+      const foodHeaders = { 'Authorization': req.headers.authorization };
+      if (correlationId) foodHeaders['X-Correlation-ID'] = correlationId;
+
       const foodResponse = await axios.post(FOOD_SERVICE_URL, foodOrder, {
-        headers: {
-          'Authorization': req.headers.authorization
-        }
+        headers: foodHeaders
       });
       foodOrderResponse = foodResponse.data;
     } catch (foodErr) {

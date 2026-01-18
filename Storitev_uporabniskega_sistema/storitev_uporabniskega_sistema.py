@@ -18,6 +18,7 @@ import uuid
 import logging
 from dotenv import load_dotenv
 from pathlib import Path
+from correlation import set_correlation_id, get_correlation_id
 
 
 JWT_SECRET_KEY = os.getenv(
@@ -108,11 +109,11 @@ def send_log(timestamp, level, url, correlation_id, app_name, message):
         channel = connection.channel()
         channel.exchange_declare(exchange=EXCHANGE_NAME, exchange_type='direct', durable=True)
         channel.queue_declare(queue=QUEUE_NAME, durable=True)
-        channel.queue_bind(exchange=EXCHANGE_NAME, queue=QUEUE_NAME, routing_key='')
+        channel.queue_bind(exchange=EXCHANGE_NAME, queue=QUEUE_NAME, routing_key=QUEUE_NAME)
         channel.basic_publish(
             exchange=EXCHANGE_NAME,
-            routing_key='',
-            body=log_message,
+            routing_key=QUEUE_NAME,
+            body=log_message.encode('utf-8') if isinstance(log_message, str) else log_message,
             properties=pika.BasicProperties(delivery_mode=2)
         )
         print("Log published successfully")
@@ -188,6 +189,26 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def correlation_middleware(request, call_next):
+    from uuid import uuid4
+
+    # prefer incoming header
+    cid = request.headers.get('x-correlation-id') or request.headers.get('X-Correlation-ID')
+    if not cid:
+        cid = str(uuid4())
+
+    # attach to request.state for existing logging usage
+    request.state.correlation_id = cid
+    # set context var so other helpers (like statistika_client) can read it
+    set_correlation_id(cid)
+
+    # ensure response includes header for downstream services / clients
+    response = await call_next(request)
+    response.headers['X-Correlation-ID'] = cid
+    return response
 
 
 class UstvariUporabnika(BaseModel):

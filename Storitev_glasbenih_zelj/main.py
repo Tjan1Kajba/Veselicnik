@@ -16,10 +16,15 @@ app = FastAPI(title="Music Requests Service")
 
 @app.middleware("http")
 async def add_correlation_id(request: Request, call_next):
-    correlation_id = request.headers.get("X-Correlation-Id", str(uuid.uuid4()))
+    correlation_id = (
+        request.headers.get("X-Correlation-ID")
+        or request.headers.get("x-correlation-id")
+        or request.headers.get("X-Correlation-Id")
+        or str(uuid.uuid4())
+    )
     request.state.correlation_id = correlation_id
     response = await call_next(request)
-    response.headers["X-Correlation-Id"] = correlation_id
+    response.headers["X-Correlation-ID"] = correlation_id
     return response
 
 app.add_middleware(

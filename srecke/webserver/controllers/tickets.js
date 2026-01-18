@@ -63,11 +63,11 @@ exports.createTicketAndMusicRequest = async (req, res) => {
       id_veselica: veselica_id
     };
 
-    const response = await axios.post("http://music-service:8000/music/requests", musicRequest, {
-      headers: {
-        'Authorization': req.headers.authorization
-      }
-    });
+    const correlationId = req.correlationId || req.headers['x-correlation-id'] || req.headers['X-Correlation-ID'];
+    const headers = { 'Authorization': req.headers.authorization };
+    if (correlationId) headers['X-Correlation-ID'] = correlationId;
+
+    const response = await axios.post("http://music-service:8000/music/requests", musicRequest, { headers });
 
 
     // Send log to RabbitMQ

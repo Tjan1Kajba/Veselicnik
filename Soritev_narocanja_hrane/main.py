@@ -16,10 +16,16 @@ app = FastAPI(title="Food Ordering Microservice")
 
 @app.middleware("http")
 async def add_correlation_id(request: Request, call_next):
-    correlation_id = request.headers.get("X-Correlation-Id", str(uuid.uuid4()))
+    # accept either casing from upstream, prefer existing value
+    correlation_id = (
+        request.headers.get("X-Correlation-ID")
+        or request.headers.get("x-correlation-id")
+        or request.headers.get("X-Correlation-Id")
+        or str(uuid.uuid4())
+    )
     request.state.correlation_id = correlation_id
     response = await call_next(request)
-    response.headers["X-Correlation-Id"] = correlation_id
+    response.headers["X-Correlation-ID"] = correlation_id
     return response
 app.add_middleware(
     CORSMiddleware,
@@ -61,10 +67,12 @@ def preveri_jwt_token(token: str):
         raise HTTPException(status_code=401, detail="Neveljaven token")
 
 
-def get_id_veselica_from_auth(access_token: str):
+def get_id_veselica_from_auth(access_token: str, correlation_id: str | None = None):
 
     url = f"{USER_SERVICE_URL}/uporabnik/prijavljen"
     headers = {"Authorization": f"Bearer {access_token}"}
+    if correlation_id:
+        headers["X-Correlation-ID"] = correlation_id
     response = requests.get(url, headers=headers)
     if response.status_code != 200:
         raise HTTPException(status_code=401, detail="Cannot fetch user info from Auth service")
@@ -152,7 +160,7 @@ def create_order(order: Order, request: Request ,user_data: dict = Depends(get_c
     payload = user_data["payload"]
 
     username = payload.get("username")
-    id_veselica = get_id_veselica_from_auth(access_token)
+    id_veselica = get_id_veselica_from_auth(access_token, correlation_id=correlation_id)
     send_log(
         log_type="INFO",
         url="/orders",

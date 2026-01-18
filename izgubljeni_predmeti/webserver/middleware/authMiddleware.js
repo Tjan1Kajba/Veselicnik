@@ -17,9 +17,12 @@ module.exports = async function authenticateToken(req, res, next) {
       return res.status(401).json({ error: "Invalid Authorization format" });
     }
 
-    // 🔗 Call Python auth service
+    // 🔗 Call Python auth service and forward correlation id
+    const correlationId = req.correlationId || req.headers['x-correlation-id'] || req.headers['X-Correlation-ID'];
     const response = await axios.post(AUTH_SERVICE_URL, {
       token,
+    }, {
+      headers: correlationId ? { 'X-Correlation-ID': correlationId } : {}
     });
 
     if (!response.data || response.data.valid !== true) {

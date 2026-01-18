@@ -84,7 +84,10 @@ async def consume_logs():
     try:
         connection = get_rabbitmq_connection()
         channel = connection.channel()
-
+        # ensure queue/exchange exist before consuming
+        channel.exchange_declare(exchange=EXCHANGE_NAME, exchange_type='direct', durable=True)
+        channel.queue_declare(queue=QUEUE_NAME, durable=True)
+        channel.bind_queue = getattr(channel, 'bind_queue', None)
         logs_consumed = 0
         while True:
             method_frame, header_frame, body = channel.basic_get(queue=QUEUE_NAME, auto_ack=True)
