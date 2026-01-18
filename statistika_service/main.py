@@ -22,7 +22,7 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Statistika API", description="API za statistiko klicev endpointov", version="1.0")
 
-# Allow frontend (localhost) and deployed frontend to call these endpoints
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "https://veselicnik.onrender.com"],
@@ -50,7 +50,6 @@ def zadnji_klican_endpoint():
     db.close()
     if not call:
         raise HTTPException(status_code=404, detail="Ni podatkov.")
-    # Return keys expected by frontend: `endpoint` and `cas` (ISO string)
     return {"endpoint": call.endpoint, "cas": call.called_at.isoformat()}
 
 @app.get("/statistika/najpogostejsi", summary="Najpogosteje klican endpoint")
@@ -60,7 +59,6 @@ def najpogostejsi_endpoint():
     db.close()
     if not result:
         raise HTTPException(status_code=404, detail="Ni podatkov.")
-    # Return keys expected by frontend: `endpoint` and `stevilo`
     return {"endpoint": result[0], "stevilo": result[1]}
 
 @app.get("/statistika/stevilo", summary="Število posameznih klicev glede na endpoint")
@@ -68,6 +66,5 @@ def stevilo_klicev():
     db = SessionLocal()
     results = db.query(EndpointCall.endpoint, func.count(EndpointCall.endpoint).label("count")).group_by(EndpointCall.endpoint).all()
     db.close()
-    # Return a plain object mapping endpoint -> count so frontend can do Object.entries()
     mapping = {r[0]: r[1] for r in results}
     return mapping

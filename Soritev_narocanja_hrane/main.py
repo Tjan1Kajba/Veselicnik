@@ -16,7 +16,6 @@ app = FastAPI(title="Food Ordering Microservice")
 
 @app.middleware("http")
 async def add_correlation_id(request: Request, call_next):
-    # accept either casing from upstream, prefer existing value
     correlation_id = (
         request.headers.get("X-Correlation-ID")
         or request.headers.get("x-correlation-id")
