@@ -192,6 +192,7 @@ services:
       RABBITMQ_PORT: 5672
       RABBITMQ_USER: admin
       RABBITMQ_PASS: secret
+      STATISTIKA_URL: https://veselicnik.onrender.com/statistika
     depends_on:
       user-mongo:
         condition: service_healthy
