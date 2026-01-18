@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request, Depends, HTTPException, status, Cookie, Response
+from .statistika_client import poslji_statistiko
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pymongo import MongoClient
@@ -604,6 +605,7 @@ async def registracija(request: Request, podatki: UstvariUporabnika):
     """
     Registracija novega uporabnika.
     """
+    poslji_statistiko("/uporabnik/registracija")
     print("Registration called")
     log_request(request, "Klic storitve POST /uporabnik/registracija")
     if mongo_client is None:
@@ -639,6 +641,7 @@ async def prijava(request: Request, podatki: PrijavaUporabnika, response: Respon
     Prijava uporabnika z uporabniškim imenom ali emailom in geslom.
     Vrne JWT access in refresh token.
     """
+    poslji_statistiko("/uporabnik/prijava")
     log_request(request, "Klic storitve POST /uporabnik/prijava")
     if mongo_client is None:
         raise HTTPException(status_code=503, detail="Storitev ni na voljo")
@@ -705,6 +708,7 @@ async def prijava(request: Request, podatki: PrijavaUporabnika, response: Respon
 
 @app.post("/auth/refresh", tags=["Sistem registracije in prijave"], response_model=JWTResponse)
 async def osvezi_token(request: Request, podatki: RefreshTokenRequest):
+        poslji_statistiko("/auth/refresh")
     """
     Osveži access token z uporabo refresh tokena.
     """
@@ -783,6 +787,7 @@ async def osvezi_token(request: Request, podatki: RefreshTokenRequest):
 
 @app.post("/uporabnik/odjava", tags=["Sistem registracije in prijave"])
 async def odjava(request: Request, response: Response, current_user: dict = Depends(zahtevaj_avtentikacijo)):
+        poslji_statistiko("/uporabnik/odjava")
     """
     Odjava trenutnega uporabnika. Prekliče JWT token in sejo.
     """
@@ -804,6 +809,7 @@ async def odjava(request: Request, response: Response, current_user: dict = Depe
 
 @app.get("/uporabnik/prijavljen", tags=["Podatki uporabnika"], response_model=PrijavljenOdgovor)
 async def prijavljen_uporabnik(request: Request, current_user: dict = Depends(zahtevaj_avtentikacijo)):
+        poslji_statistiko("/uporabnik/prijavljen")
     """
     Pridobi podatke o prijavljenem uporabniku in vrne nove JWT tokene.
     """
@@ -829,6 +835,7 @@ async def prijavljen_uporabnik(request: Request, current_user: dict = Depends(za
 
 @app.get("/uporabniki", tags=["Podatki uporabnika"], response_model=List[OdgovorUporabnika])
 async def vsi_uporabniki(request: Request, current_user: dict = Depends(zahtevaj_avtentikacijo)):
+        poslji_statistiko("/uporabniki")
     """
     Pridobi seznam vseh uporabnikov. 
     """
@@ -862,6 +869,7 @@ async def vsi_uporabniki(request: Request, current_user: dict = Depends(zahtevaj
 
 @app.put("/uporabnik/posodobi-uporabnika", tags=["Posodobi uporabnika"], response_model=OdgovorUporabnika)
 async def posodobi_uporabnika(
+        poslji_statistiko("/uporabnik/posodobi-uporabnika")
     request: Request,
     podatki: PosodobiUporabnika,
     current_user: dict = Depends(zahtevaj_avtentikacijo)
@@ -949,6 +957,7 @@ async def posodobi_uporabnika(
 
 @app.patch("/uporabnik/posodobi-uporabnika/spremeni-geslo", tags=["Posodobi uporabnika"], response_model=dict)
 async def spremeni_geslo(
+            poslji_statistiko("/uporabnik/posodobi-uporabnika/spremeni-geslo")
         request: Request,
         podatki: SpremeniGeslo,
         current_user: dict = Depends(zahtevaj_avtentikacijo)):
@@ -1016,6 +1025,7 @@ async def spremeni_geslo(
 
 @app.delete("/uporabnik/izbrisi-racun", tags=["Izbriši uporabnika"], response_model=dict)
 async def izbrisi_racun(
+        poslji_statistiko("/uporabnik/izbrisi-racun")
     request: Request,
     response: Response,
     current_user: dict = Depends(zahtevaj_avtentikacijo)
@@ -1071,6 +1081,7 @@ async def izbrisi_racun(
 
 @app.delete("/uporabnik/izbrisi-racun/{uporabnisko_ime}", tags=["Izbriši uporabnika"], response_model=dict)
 async def izbrisi_uporabnika_po_uporabniskem_imenu(
+        poslji_statistiko("/uporabnik/izbrisi-racun/{uporabnisko_ime}")
     request: Request,
     uporabnisko_ime: str,
     current_user: dict = Depends(zahtevaj_avtentikacijo)
@@ -1150,6 +1161,7 @@ async def izbrisi_uporabnika_po_uporabniskem_imenu(
 
 @app.post("/veselice", tags=["Veselice"], response_model=OdgovorVeselice)
 async def ustvari_veselico(
+        poslji_statistiko("/veselice")
     request: Request,
     podatki: UstvariVeselico,
     current_user: dict = Depends(zahtevaj_admin_pravice)
@@ -1188,6 +1200,7 @@ async def ustvari_veselico(
 
 @app.get("/veselice", tags=["Veselice"], response_model=List[OdgovorVeselice])
 async def pridobi_vse_veselice(
+        poslji_statistiko("/veselice")
     request: Request,
     current_user: dict = Depends(zahtevaj_avtentikacijo)
 ):
@@ -1214,6 +1227,7 @@ async def pridobi_vse_veselice(
 
 @app.get("/veselice/{veselica_id}", tags=["Veselice"], response_model=OdgovorVeseliceDetail)
 async def pridobi_veselico(
+        poslji_statistiko("/veselice/{veselica_id}")
     request: Request,
     veselica_id: str,
     current_user: dict = Depends(zahtevaj_avtentikacijo)
@@ -1271,6 +1285,7 @@ async def pridobi_veselico(
 
 @app.post("/veselice/{veselica_id}/prijava", tags=["Veselice"])
 async def prijava_na_veselico(
+        poslji_statistiko("/veselice/{veselica_id}/prijava")
     request: Request,
     veselica_id: str,
     current_user: dict = Depends(zahtevaj_avtentikacijo)
@@ -1348,6 +1363,7 @@ async def prijava_na_veselico(
 
 @app.post("/veselice/{veselica_id}/odjava", tags=["Veselice"])
 async def odjava_z_veselice(
+        poslji_statistiko("/veselice/{veselica_id}/odjava")
     request: Request,
     veselica_id: str,
     current_user: dict = Depends(zahtevaj_avtentikacijo)
@@ -1414,6 +1430,7 @@ async def odjava_z_veselice(
 
 @app.delete("/veselice/{veselica_id}", tags=["Veselice"], response_model=dict)
 async def izbrisi_veselico(
+        poslji_statistiko("/veselice/{veselica_id}")
     request: Request,
     veselica_id: str,
     current_user: dict = Depends(zahtevaj_admin_pravice)
@@ -1461,6 +1478,7 @@ async def izbrisi_veselico(
 
 @app.post("/auth/verify-token", tags=["JWT Avtentikacija"])
 async def verify_token_via_body(request: Request, podatki: TokenForVerification):
+        poslji_statistiko("/auth/verify-token")
     """
     Preveri veljavnost JWT tokena preko request bodyja.
     Uporabno za direktno testiranje brez Authorization headerja.
