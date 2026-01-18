@@ -13,6 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 
 COPY storitev_uporabniskega_sistema.py .
+COPY statistika_client.py .
 
 
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
