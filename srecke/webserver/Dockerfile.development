@@ -17,4 +17,4 @@ RUN npm install
 COPY . .
 
 EXPOSE 9001
-CMD ["npx", "nodemon", "app.js"]
+CMD ["npx", "nodemon", "--legacy-watch", "--watch", "/usr/src/app", "app.js"]

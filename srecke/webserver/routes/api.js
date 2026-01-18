@@ -5,13 +5,18 @@ const Tickets = require("../controllers/tickets");
 const Prizes = require("../controllers/prizes");
 const Draws = require("../controllers/draws");
 
+const authenticateToken = require("../middleware/authMiddleware.js");
+const { requireAdmin } = require("../middleware/roleMiddleware");
+
 /**
  * @swagger
  * tags:
- *   - name: Tickets
  *   - name: Prizes
+ *   - name: Tickets
  *   - name: Draws
  */
+
+
 
 /* ================================
    TICKETS
@@ -21,8 +26,10 @@ const Draws = require("../controllers/draws");
  * @swagger
  * /tickets:
  *   post:
- *     summary: Ustvari novo srečko
+ *     summary: Ustvari novo srečko 2
  *     tags: [Tickets]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -31,13 +38,13 @@ const Draws = require("../controllers/draws");
  *             type: object
  *             required: [userId]
  *             properties:
- *               userId:
+ *               veselica_id:
  *                 type: string
  *     responses:
  *       201:
  *         description: Srečka ustvarjena
  */
-router.post("/tickets", Tickets.createTicket);
+router.post("/tickets", authenticateToken, Tickets.createTicket);
 
 
 /**
@@ -45,6 +52,8 @@ router.post("/tickets", Tickets.createTicket);
  * /ticketsAndMusicRequest:
  *   post:
  *     summary: Ustvari novo srečko in pošlje zahtevo za glasbo
+ *     security:
+ *       - bearerAuth: []
  *     tags: [Tickets]
  *     requestBody:
  *       required: true
@@ -57,18 +66,20 @@ router.post("/tickets", Tickets.createTicket);
  *               - songName
  *               - artist
  *             properties:
- *               userId:
+ *               veselica_id:
  *                 type: string
  *               songName:
  *                 type: string
+ *                 example: "Starships"
  *               artist:
  *                 type: string
+ *                 example: "Niki Minaj"
  *     responses:
  *       201:
  *         description: Ticket and music request created
  */
 
-router.post("/ticketsAndMusicRequest", Tickets.createTicketAndMusicRequest);
+router.post("/ticketsAndMusicRequest", authenticateToken, Tickets.createTicketAndMusicRequest);
 
 
 
@@ -78,18 +89,22 @@ router.post("/ticketsAndMusicRequest", Tickets.createTicketAndMusicRequest);
  * /tickets:
  *   get:
  *     summary: Seznam vseh kupljenih srečk
+ *     security:
+ *       - bearerAuth: []
  *     tags: [Tickets]
  *     responses:
  *       200:
  *         description: OK
  */
-router.get("/tickets", Tickets.getTickets);
+router.get("/tickets", authenticateToken, Tickets.getTickets);
 
 /**
  * @swagger
  * /tickets/{id}:
  *   put:
  *     summary: Posodobi podatke o srečki
+ *     security:
+ *       - bearerAuth: []
  *     tags: [Tickets]
  *     parameters:
  *       - in: path
@@ -112,13 +127,15 @@ router.get("/tickets", Tickets.getTickets);
  *       404:
  *         description: Srečka ne obstaja
  */
-router.put("/tickets/:id", Tickets.updateTicket);
+router.put("/tickets/:id", authenticateToken, Tickets.updateTicket);
 
 /**
  * @swagger
  * /tickets/{id}:
  *   delete:
  *     summary: Izbriši srečko
+ *     security:
+ *       - bearerAuth: []
  *     tags: [Tickets]
  *     parameters:
  *       - in: path
@@ -132,8 +149,7 @@ router.put("/tickets/:id", Tickets.updateTicket);
  *       404:
  *         description: Srečka ne obstaja
  */
-router.delete("/tickets/:id", Tickets.deleteTicket);
-
+router.delete("/tickets/:id", authenticateToken, Tickets.deleteTicket);
 
 
 /* ================================
@@ -152,11 +168,32 @@ router.delete("/tickets/:id", Tickets.deleteTicket);
  */
 router.get("/prizes", Prizes.getPrizes);
 
+
+/**
+ * @swagger
+ * /prizes/{id}:
+ *   get:
+ *     summary: Seznam vseh nagrad na doloceni veselici
+ *     tags: [Prizes]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: OK
+ */
+router.get("/prizes/:id", Prizes.getPrizesOnVeselica);
+
 /**
  * @swagger
  * /prizes:
  *   post:
  *     summary: Dodaj novo nagrado
+ *     security:
+ *       - bearerAuth: []
  *     tags: [Prizes]
  *     requestBody:
  *       required: true
@@ -170,17 +207,22 @@ router.get("/prizes", Prizes.getPrizes);
  *                 type: string
  *               probability:
  *                 type: number
+ *                 example: 0.1
+ *               veselica_id:
+ *                 type: string
  *     responses:
  *       201:
  *         description: Nagrada ustvarjena
  */
-router.post("/prizes", Prizes.createPrize);
+router.post("/prizes", authenticateToken, Prizes.createPrize);
 
 /**
  * @swagger
  * /prizes/{id}:
  *   put:
  *     summary: Posodobi nagrado
+ *     security:
+ *       - bearerAuth: []
  *     tags: [Prizes]
  *     parameters:
  *       - in: path
@@ -205,13 +247,15 @@ router.post("/prizes", Prizes.createPrize);
  *       404:
  *         description: Nagrada ne obstaja
  */
-router.put("/prizes/:id", Prizes.updatePrize);
+router.put("/prizes/:id", authenticateToken, Prizes.updatePrize);
 
 /**
  * @swagger
  * /prizes/{id}:
  *   delete:
  *     summary: Izbriši nagrado
+ *     security:
+ *       - bearerAuth: []
  *     tags: [Prizes]
  *     parameters:
  *       - in: path
@@ -225,7 +269,7 @@ router.put("/prizes/:id", Prizes.updatePrize);
  *       404:
  *         description: Nagrada ne obstaja
  */
-router.delete("/prizes/:id", Prizes.deletePrize);
+router.delete("/prizes/:id", authenticateToken, Prizes.deletePrize);
 
 
 
@@ -236,20 +280,42 @@ router.delete("/prizes/:id", Prizes.deletePrize);
 /**
  * @swagger
  * /draws:
+ *   get:
+ *     summary: Seznam vseh žrebanj
+ *     tags: [Draws]
+ *     responses:
+ *       200:
+ *         description: OK
+ */
+router.get("/draws", Draws.getDraws);
+
+/**
+ * @swagger
+ * /draws/{id_veselica}:
  *   post:
  *     summary: Ustvari novo žrebanje
+ *     security:
+ *       - bearerAuth: []
  *     tags: [Draws]
+ *     parameters:
+ *       - in: path
+ *         name: id_veselica
+ *         required: true
+ *         schema:
+ *           type: string
  *     responses:
  *       201:
  *         description: Žrebanje ustvarjeno
  */
-router.post("/draws", Draws.createDraw);
+router.post("/draws/:id_veselica", authenticateToken, requireAdmin, Draws.createDraw);
 
 /**
  * @swagger
  * /draws/{id}/winners:
  *   get:
  *     summary: Prikaže zmagovalce žrebanja
+ *     security:
+ *       - bearerAuth: []
  *     tags: [Draws]
  *     parameters:
  *       - in: path
@@ -263,13 +329,15 @@ router.post("/draws", Draws.createDraw);
  *       404:
  *         description: Žrebanje ne obstaja
  */
-router.get("/draws/:id/winners", Draws.getWinners);
+router.get("/draws/:id/winners", authenticateToken, Draws.getWinners);
 
 /**
  * @swagger
  * /draws/{id}:
  *   delete:
  *     summary: Izbriši žrebanje
+ *     security:
+ *       - bearerAuth: []
  *     tags: [Draws]
  *     parameters:
  *       - in: path
@@ -283,6 +351,6 @@ router.get("/draws/:id/winners", Draws.getWinners);
  *       404:
  *         description: Ne obstaja
  */
-router.delete("/draws/:id", Draws.deleteDraw);
+router.delete("/draws/:id", authenticateToken, Draws.deleteDraw);
 
 module.exports = router;

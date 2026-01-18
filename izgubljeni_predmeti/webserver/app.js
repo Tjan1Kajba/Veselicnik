@@ -2,13 +2,34 @@ const express = require("express");
 const mongoose = require("mongoose");
 const swaggerUi = require("swagger-ui-express");
 const swaggerJsdoc = require("swagger-jsdoc");
+const cors = require("cors");
 const dotenv = require("dotenv");
 
 const axios = require("axios");
 
+const authenticateToken = require("./middleware/authMiddleware.js");
+const { requireAdmin } = require("./middleware/roleMiddleware.js");
+
 dotenv.config();
 
 const app = express();
+
+app.use(cors({
+  origin: [
+    "http://frontend_user:3000",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    "http://localhost:8001",
+    "http://localhost:8002",
+    "http://localhost:8003",
+    "http://localhost:8004",
+  ],
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+}));
+
 app.use(express.json());
 
 
@@ -18,6 +39,7 @@ const { DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, PORT } = process.env;
 
 const MONGO_URI = `mongodb://${DB_USER}:${DB_PASSWORD}@izgubljeni_predmeti_mongo:27017/${DB_NAME}?authSource=admin`;
 
+const { sendLog } = require("./logger/rabbitmq.js");
 
 async function connectWithRetry(retries = 10, delay = 3000) {
   for (let i = 0; i < retries; i++) {
@@ -42,14 +64,22 @@ connectWithRetry();
 // -----------------------------
 const itemSchema = new mongoose.Schema(
   {
+    veselica_id: { type: String, required: true },
     type: { type: String, enum: ["lost", "found"], required: true },
     name: String,
     description: String,
+    user_id: { type: String, required: true },
   },
   { timestamps: true }
 );
 
 const Item = mongoose.model("Item", itemSchema);
+
+
+const correlationIdMiddleware = require("./middleware/correlation.js");
+
+app.use(correlationIdMiddleware);
+
 
 // -----------------------------
 // Swagger Setup
@@ -62,12 +92,23 @@ const swaggerOptions = {
       version: "1.0.0",
       description: "API za prijavo izgubljenih in najdenih predmetov",
     },
+
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+        },
+      },
+    },
   },
   apis: ["./app.js"],
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
-app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use("/docs",
+  swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 /**
  * @swagger
@@ -109,6 +150,8 @@ app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
  *     summary: Prijava izgubljenega predmeta
  *     tags:
  *       - Lost
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -122,14 +165,47 @@ app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
  *               description:
  *                 type: string
  *                 example: "Črna usnjena denarnica"
+ *               veselica_id:
+ *                 type: string
+ *                 example: ""
  *     responses:
  *       201:
  *         description: Item created
  */
-app.post("/lost", async (req, res) => {
-  const item = await Item.create({ type: "lost", ...req.body });
-  res.status(201).json(item);
-});
+app.post("/lost",
+  authenticateToken,
+  async (req, res) => {
+
+    try {
+      const item = await Item.create({ type: "lost", user_id: req.user.id, ...req.body });
+
+      // Send log to RabbitMQ
+      await sendLog(
+        "INFO",
+        req.originalUrl,
+        req.method,
+        true,
+        "",
+        req.correlationId
+      );
+
+      res.status(201).json(item);
+
+    } catch (err) {
+
+      // Send log to RabbitMQ
+      await sendLog(
+        "INFO",
+        req.originalUrl,
+        req.method,
+        false,
+        "",
+        req.correlationId
+      );
+
+      res.status(500).json({ error: err.message });
+    }
+  });
 
 /**
  * @swagger
@@ -137,6 +213,8 @@ app.post("/lost", async (req, res) => {
  *   get:
  *     summary: Vrne seznam vseh izgubljenih predmetov
  *     tags: [Lost]
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: List of lost items
@@ -147,8 +225,21 @@ app.post("/lost", async (req, res) => {
  *               items:
  *                 $ref: '#/components/schemas/Item'
  */
-app.get("/lost", async (req, res) => {
+app.get("/lost",
+  authenticateToken,
+  async (req, res) => {
   const items = await Item.find({ type: "lost" });
+
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      true,
+      "",
+      req.correlationId
+    );
+
   res.json(items);
 });
 
@@ -158,6 +249,8 @@ app.get("/lost", async (req, res) => {
  *   get:
  *     summary: Vrne podrobnosti o določenem izgubljenem predmetu
  *     tags: [Lost]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - name: id
  *         in: path
@@ -174,11 +267,35 @@ app.get("/lost", async (req, res) => {
  *       404:
  *         description: Item not found
  */
-app.get("/lost/:id", async (req, res) => {
+app.get("/lost/:id",
+  authenticateToken,
+ async (req, res) => {
   const item = await Item.findById(req.params.id);
-  if (!item || item.type !== "lost")
-    return res.status(404).json({ message: "Predmet ne obstaja." });
+  if (!item || item.type !== "lost") {
+    
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "",
+      req.correlationId
+    );
 
+    return res.status(404).json({ message: "Predmet ne obstaja." });
+  }
+
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      true,
+      "",
+      req.correlationId
+    );
+    
   res.json(item);
 });
 
@@ -188,6 +305,8 @@ app.get("/lost/:id", async (req, res) => {
  *   put:
  *     summary: Posodobi podatke o izgubljenem predmetu
  *     tags: [Lost]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - name: id
  *         in: path
@@ -215,14 +334,57 @@ app.get("/lost/:id", async (req, res) => {
  *       404:
  *         description: Item not found
  */
-app.put("/lost/:id", async (req, res) => {
-  const item = await Item.findOneAndUpdate(
+app.put("/lost/:id",
+  authenticateToken,
+ async (req, res) => {
+  const item = await Item.findById(req.params.id);
+  if (!item || item.type !== "lost") {
+
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "",
+      req.correlationId
+    );
+
+    return res.status(404).json({ message: "Predmet ne obstaja." });
+  }
+
+  if (item.user_id !== req.user.id && req.user.userType !== "admin") {
+
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "Not authorized",
+      req.correlationId
+    );
+
+    return res.status(403).json({ error: "Not authorized" });
+  }
+
+  const updatedItem = await Item.findOneAndUpdate(
     { _id: req.params.id, type: "lost" },
     req.body,
     { new: true }
   );
-  if (!item) return res.status(404).json({ message: "Predmet ne obstaja." });
-  res.json(item);
+
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      true,
+      "",
+      req.correlationId
+    );
+
+  res.json(updatedItem);
 });
 
 /**
@@ -231,6 +393,8 @@ app.put("/lost/:id", async (req, res) => {
  *   delete:
  *     summary: Izbriše prijavo izgubljenega predmeta
  *     tags: [Lost]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - name: id
  *         in: path
@@ -243,12 +407,54 @@ app.put("/lost/:id", async (req, res) => {
  *       404:
  *         description: Item not found
  */
-app.delete("/lost/:id", async (req, res) => {
+app.delete("/lost/:id",
+  authenticateToken,
+ async (req, res) => {
+  const item = await Item.findById(req.params.id);
+  if (!item || item.type !== "lost") {
+
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "",
+      req.correlationId
+    );
+
+    return res.status(404).json({ message: "Predmet ne obstaja." });
+  }
+
+  if (item.user_id !== req.user.id && req.user.userType !== "admin") {
+
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "Not authorized",
+      req.correlationId
+    );
+
+    return res.status(403).json({ error: "Not authorized" });
+  }
+
   const result = await Item.findOneAndDelete({
     _id: req.params.id,
     type: "lost",
   });
-  if (!result) return res.status(404).json({ message: "Predmet ne obstaja." });
+
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      true,
+      "",
+      req.correlationId
+    );
 
   res.status(204).send();
 });
@@ -261,9 +467,352 @@ app.delete("/lost/:id", async (req, res) => {
 /**
  * @swagger
  * /found:
- *   post:
- *     summary: Prijava najdenega predmeta in naročilo hrane
+ *   get:
+ *     summary: Vrne seznam vseh najdenih predmetov
  *     tags: [Found]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of found items
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Item'
+ */
+app.get("/found",
+  authenticateToken,
+  async (req, res) => {
+  const items = await Item.find({ type: "found" });
+
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      true,
+      "",
+      req.correlationId
+    );
+
+  res.json(items);
+});
+
+/**
+ * @swagger
+ * /found/{id}:
+ *   get:
+ *     summary: Vrne podrobnosti o določenem najdenem predmetu
+ *     tags: [Found]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Item details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Item'
+ *       404:
+ *         description: Item not found
+ */
+app.get("/found/:id",
+  authenticateToken,
+ async (req, res) => {
+  const item = await Item.findById(req.params.id);
+  if (!item || item.type !== "found") {
+
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "",
+      req.correlationId
+    );
+
+    return res.status(404).json({ message: "Predmet ne obstaja." });
+  }
+
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      true,
+      "",
+      req.correlationId
+    );
+
+  res.json(item);
+});
+
+/**
+ * @swagger
+ * /found/{id}:
+ *   delete:
+ *     summary: Izbris najdenega predmeta
+ *     tags: [Found]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, description, userId]
+ *     responses:
+ *       201:
+ *         description: Item deleted
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 foundItem:
+ *                   $ref: '#/components/schemas/Item'
+ *                 foodOrderResponse:
+ *                   type: object
+ */
+app.delete(
+  "/found/:id",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const item = await Item.findById(id);
+      if (!item || item.type !== "found") {
+
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "",
+      req.correlationId
+    );
+
+        return res.status(404).json({ error: "Found item not found" });
+      }
+
+      if (item.user_id !== req.user.id && req.user.userType !== "admin") {
+
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "Not authorized",
+      req.correlationId
+    );
+
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const deletedItem = await Item.findOneAndDelete({
+        _id: id,
+        type: "found",
+      });
+
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      true,
+      "",
+      req.correlationId
+    );
+
+      res.json({
+        message: "Found item deleted",
+        deletedItem,
+      });
+    } catch (err) {
+      console.error(err.message);
+
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "",
+      req.correlationId
+    );
+
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /found/{id}:
+ *   put:
+ *     summary: Posodobi najden predmet
+ *     tags: [Found]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - description
+ *             properties:
+ *               name:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Found item updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Item'
+ *       400:
+ *         description: Invalid input
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Item not found
+ */
+app.put(
+  "/found/:id",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name, description, veselica_id } = req.body;
+
+      // Basic validation
+      if (!name || !description) {
+
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "",
+      req.correlationId
+    );
+
+        return res.status(400).json({
+          error: "name and description are required",
+        });
+      }
+
+      const item = await Item.findById(id);
+      if (!item || item.type !== "found") {
+
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "",
+      req.correlationId
+    );
+
+        return res.status(404).json({ error: "Found item not found" });
+      }
+
+      if (item.user_id !== req.user.id && req.user.userType !== "admin") {
+
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "Not authorized",
+      req.correlationId
+    );
+
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const updatedItem = await Item.findOneAndUpdate(
+  { _id: id, type: "found" },
+  { name, description, veselica_id },
+  { new: true, runValidators: true }
+);
+
+
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      true,
+      "",
+      req.correlationId
+    );
+
+      res.json({
+        message: "Found item updated",
+        updatedItem,
+      });
+    } catch (err) {
+      console.error(err.message);
+
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "",
+      req.correlationId
+    );
+
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
+
+
+
+/**
+ * @swagger
+ * /found:
+ *   post:
+ *     summary: Prijava najdenega predmeta
+ *     tags: [Found]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -278,6 +827,87 @@ app.delete("/lost/:id", async (req, res) => {
  *                 type: string
  *               userId:
  *                 type: string
+ *               veselica_id:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Item created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 foundItem:
+ *                   $ref: '#/components/schemas/Item'
+ *                 foodOrderResponse:
+ *                   type: object
+ */
+app.post("/found",
+  authenticateToken,
+ async (req, res) => {
+  const { name, description, userId, veselica_id } = req.body;
+
+  try {
+    const foundItem = await Item.create({ type: "found", name, description, user_id: req.user.id, veselica_id });
+
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      true,
+      "",
+      req.correlationId
+    );
+
+    res.status(201).json({
+      foundItem,
+    });
+
+  } catch (err) {
+    console.error(err.message);
+
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "",
+      req.correlationId
+    );
+
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * @swagger
+ * /foundAndOrderFood:
+ *   post:
+ *     summary: Prijava najdenega predmeta in naročilo hrane
+ *     tags: [Found]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, description, userId]
+ *             properties:
+ *               name:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               userId:
+ *                 type: string
+ *               veselica_id:
+ *                 type: string
+ *               food_name:
+ *                 type: string
+ *                 example: "pica"
  *     responses:
  *       201:
  *         description: Item created and food order sent
@@ -291,34 +921,67 @@ app.delete("/lost/:id", async (req, res) => {
  *                 foodOrderResponse:
  *                   type: object
  */
-app.post("/found", async (req, res) => {
-  const { name, description, userId } = req.body;
+app.post("/foundAndOrderFood",
+  authenticateToken,
+ async (req, res) => {
+  const { name, description, userId, veselica_id, food_name } = req.body;
 
   try {
-    // 1️⃣ Create the found item
-    const foundItem = await Item.create({ type: "found", name, description });
+    // create the found item
+    const foundItem = await Item.create({ type: "found", name, description, user_id: req.user.id, veselica_id });
 
-    // 2️⃣ Create the food order
-    const foodOrder = {
-      user_id: userId,
-      items: [
-        { item_id: foundItem._id.toString(), quantity: 1 }
-      ],
-      status: "pending",
-      paid: false
-    };
-  
+    let foodOrderResponse = null;
+    try {
+      // create the food order (automatically paid since it's a gift)
+      const foodOrder = {
+        user_id: userId,
+        items: [
+          { item_id: food_name, quantity: 1 }
+        ],
+        status: "Darilo",
+        paid: true
+      };
 
-    const foodResponse = await axios.post(FOOD_SERVICE_URL, foodOrder);
+      const foodResponse = await axios.post(FOOD_SERVICE_URL, foodOrder, {
+        headers: {
+          'Authorization': req.headers.authorization
+        }
+      });
+      foodOrderResponse = foodResponse.data;
+    } catch (foodErr) {
+      console.error("Food order creation failed, but item was created:", foodErr.message);
+      // Log the error but don't fail the request since the item was created
+    }
 
-    // 3️⃣ Respond with both found item and food order
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      true,
+      "",
+      req.correlationId
+    );
+
+    // respond with found item and food order (if successful)
     res.status(201).json({
       foundItem,
-      foodOrderResponse: foodResponse.data
+      foodOrderResponse
     });
 
   } catch (err) {
     console.error(err.message);
+
+  // Send log to RabbitMQ
+    await sendLog(
+      "INFO",
+      req.originalUrl,
+      req.method,
+      false,
+      "",
+      req.correlationId
+    );
+
     res.status(500).json({ error: err.message });
   }
 });
@@ -327,4 +990,3 @@ app.post("/found", async (req, res) => {
 app.listen(PORT || 9000, '0.0.0.0', () =>
   console.log(`🚀 Server running at http://localhost:${PORT || 9000}/docs`)
 );
-

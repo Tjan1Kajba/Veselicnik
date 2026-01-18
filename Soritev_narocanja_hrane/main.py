@@ -1,20 +1,48 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.middleware.cors import CORSMiddleware
 from bson import ObjectId
 from datetime import datetime
 import jwt
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 import os
-
+import requests
 from models import Order, StatusUpdate, Payment, MenuItem
 from database import orders_collection, menu_collection
-
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from logger import send_log
+import uuid
 app = FastAPI(title="Food Ordering Microservice")
+
+@app.middleware("http")
+async def add_correlation_id(request: Request, call_next):
+    correlation_id = request.headers.get("X-Correlation-Id", str(uuid.uuid4()))
+    request.state.correlation_id = correlation_id
+    response = await call_next(request)
+    response.headers["X-Correlation-Id"] = correlation_id
+    return response
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://frontend_user:3000",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8000",
+        "http://localhost:8001",
+        "http://localhost:8002",
+        "http://localhost:8003",
+        "http://localhost:8004",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production")
 JWT_ALGORITHM = "HS256"
 
+USER_SERVICE_URL = "http://host.docker.internal:8002"
 
 def preveri_jwt_token(token: str):
     try:
@@ -23,7 +51,8 @@ def preveri_jwt_token(token: str):
             JWT_SECRET_KEY,
             algorithms=[JWT_ALGORITHM],
             audience="api-clients",
-            issuer="uporabniski-sistem"
+            issuer="uporabniski-sistem",
+
         )
         return payload
     except ExpiredSignatureError:
@@ -32,12 +61,34 @@ def preveri_jwt_token(token: str):
         raise HTTPException(status_code=401, detail="Neveljaven token")
 
 
+def get_id_veselica_from_auth(access_token: str):
+
+    url = f"{USER_SERVICE_URL}/uporabnik/prijavljen"
+    headers = {"Authorization": f"Bearer {access_token}"}
+    response = requests.get(url, headers=headers)
+    if response.status_code != 200:
+        raise HTTPException(status_code=401, detail="Cannot fetch user info from Auth service")
+
+    data = response.json()
+    id_veselica = data["user"].get("id_veselica")
+    if not id_veselica:
+        raise HTTPException(status_code=400, detail="User is not registered to any veselica")
+    return id_veselica
+
+
+bearer_scheme = HTTPBearer()
+
+
 bearer_scheme = HTTPBearer()
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)
 ):
-    return preveri_jwt_token(credentials.credentials)
+    payload = preveri_jwt_token(credentials.credentials)
+    return {
+        "payload": payload,
+        "token": credentials.credentials
+    }
 
 
 def order_serializer(order) -> dict:
@@ -47,19 +98,41 @@ def order_serializer(order) -> dict:
         "items": order["items"],
         "status": order["status"],
         "paid": order["paid"],
-        "total_price": order.get("total_price", 0)
-    }
+        "total_price": order.get("total_price", 0),
+        "id_veselica": order.get("id_veselica") 
+                }
 
 
 @app.get("/menu")
-def get_menu():
-    menu = list(menu_collection.find())
+def get_menu(request: Request, veselica_id: str = None):
+    correlation_id = request.state.correlation_id
+    send_log(
+        log_type="INFO",
+        url="/menu",
+        message=f"Created menu request",
+        service="narocanje-hrane-service",
+        correlation_id=correlation_id
+    )
+
+    query = {}
+    if veselica_id:
+        query["veselica_id"] = {"$in": [veselica_id, None]}  # Include items with matching veselica_id or null (global items)
+
+    menu = list(menu_collection.find(query))
     for item in menu:
         item["_id"] = str(item["_id"])
     return menu
 
 @app.post("/menu")
-def add_menu_item(item: MenuItem, user_data: dict = Depends(get_current_user)):
+def add_menu_item(item: MenuItem, request: Request ,user_data: dict = Depends(get_current_user)):
+    correlation_id = request.state.correlation_id
+    send_log(
+        log_type="INFO",
+        url="/menu",
+        message=f"Created POST menu request",
+        service="narocanje-hrane-service",
+        correlation_id=correlation_id
+    )
     result = menu_collection.insert_one(item.dict())
     return {"id": str(result.inserted_id)}
 
@@ -72,13 +145,21 @@ def delete_menu_item(id: str, user_data: dict = Depends(get_current_user)):
 
 
 @app.post("/orders")
-def create_order(order: Order, user_data: dict = Depends(get_current_user)):
-    username = user_data["username"]
-    id_veselica = user_data.get("id_veselica")
+def create_order(order: Order, request: Request ,user_data: dict = Depends(get_current_user)):
+    correlation_id = request.state.correlation_id
 
-    if not id_veselica:
-        raise HTTPException(status_code=400, detail="User is not registered to any veselica")
+    access_token = user_data["token"]
+    payload = user_data["payload"]
 
+    username = payload.get("username")
+    id_veselica = get_id_veselica_from_auth(access_token)
+    send_log(
+        log_type="INFO",
+        url="/orders",
+        message=f"User {username} Created POST orders request",
+        service="narocanje-hrane-service",
+        correlation_id=correlation_id
+    )
     total_price = 0.0
     for item in order.items:
         menu_item = menu_collection.find_one({"name": item.item_id})
@@ -90,8 +171,8 @@ def create_order(order: Order, user_data: dict = Depends(get_current_user)):
     order_dict["total_price"] = total_price
     order_dict["user_id"] = username
     order_dict["id_veselica"] = id_veselica
-    order_dict["paid"] = False
-    order_dict["status"] = "created"
+    order_dict["paid"] = order.paid
+    order_dict["status"] = order.status
     order_dict["created_at"] = datetime.utcnow()
 
     result = orders_collection.insert_one(order_dict)
@@ -137,6 +218,7 @@ def pay_order(
     payment: Payment,
     user_data: dict = Depends(get_current_user)
 ):
+    id_veselica = user_data.get("id_veselica")
     order = orders_collection.find_one({"_id": ObjectId(id)})
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
@@ -154,7 +236,8 @@ def pay_order(
     return {
         "message": "Order paid",
         "total_price": order["total_price"],
-        "payment": payment.dict()
+        "payment": payment.dict(),
+        "id_veselica": id_veselica
     }
 
 @app.delete("/orders/{id}")

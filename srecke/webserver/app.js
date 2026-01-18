@@ -2,11 +2,16 @@ const express = require("express");
 const mongoose = require("mongoose");
 const swaggerUi = require("swagger-ui-express");
 const swaggerJsdoc = require("swagger-jsdoc");
+const cors = require("cors");
 const apiRoutes = require("./routes/api");
 
 require("dotenv").config();
 
 const app = express();
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+}));
 app.use(express.json());
 
 // Mongo
@@ -33,14 +38,30 @@ async function connectWithRetry(retries = 10, delay = 3000) {
 
 connectWithRetry();
 
+
 // Swagger
 const swaggerSpec = swaggerJsdoc({
   definition: {
     openapi: "3.0.0",
     info: { title: "Storitev srečk", version: "1.0.0" },
+
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+        },
+      },
+    },
   },
   apis: ["./routes/*.js"],
 });
+
+const correlationIdMiddleware = require("./middleware/correlation.js");
+
+app.use(correlationIdMiddleware);
+
 
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 

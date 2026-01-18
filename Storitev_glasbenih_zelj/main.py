@@ -1,15 +1,34 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.middleware.cors import CORSMiddleware
 from bson import ObjectId
 from datetime import datetime
 import requests
 import jwt
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 import os
-from models import MusicRequest, Vote
+from models import MusicRequest, Vote, CreateMusicRequest
 from database import requests_collection
+from logger import send_log
+import uuid
 
 app = FastAPI(title="Music Requests Service")
+
+@app.middleware("http")
+async def add_correlation_id(request: Request, call_next):
+    correlation_id = request.headers.get("X-Correlation-Id", str(uuid.uuid4()))
+    request.state.correlation_id = correlation_id
+    response = await call_next(request)
+    response.headers["X-Correlation-Id"] = correlation_id
+    return response
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 FOOD_SERVICE_URL = "http://host.docker.internal:8001"
 USER_SERVICE_URL = "http://host.docker.internal:8002"
@@ -55,37 +74,67 @@ def request_serializer(request) -> dict:
 @app.get("/music/requests/veselica/{id_veselica}")
 def get_requests_by_veselica(id_veselica: str):
     requests_list = list(requests_collection.find({"id_veselica": id_veselica}))
-    if not requests_list:
-        raise HTTPException(status_code=404, detail="No music requests found for this veselica")
     return [request_serializer(r) for r in requests_list]
 
 @app.post("/music/requests")
-def create_request(music_request: MusicRequest, user_data: dict = Depends(get_current_user)):
+def create_request(music_request: CreateMusicRequest,request: Request, user_data: dict = Depends(get_current_user)):
     user_id = user_data["username"]
-    id_veselica = user_data.get("id_veselica")
-
-    r = requests.get(f"{FOOD_SERVICE_URL}/orders/user/{user_id}/paid")
-    if r.status_code != 200 or not r.json().get("has_paid_orders", False):
-        raise HTTPException(status_code=403, detail="You must buy food before making a music request")
+    correlation_id = request.state.correlation_id
+    send_log(
+        log_type="INFO",
+        url="/music/requests",
+        message=f"User {user_id} created music request",
+        service="music-service",
+        correlation_id=correlation_id
+    )
 
     request_doc = music_request.dict()
     request_doc["votes"] = 0
+    request_doc["voters"] = []  
     request_doc["timestamp"] = datetime.utcnow()
     request_doc["user_id"] = user_id
-    request_doc["id_veselica"] = id_veselica
 
     result = requests_collection.insert_one(request_doc)
-    return {"id": str(result.inserted_id), "user_id": user_id, "id_veselica": id_veselica}
+    return {"id": str(result.inserted_id), "user_id": user_id, "id_veselica": music_request.id_veselica}
 
 @app.post("/music/requests/{id}/vote")
-def vote_request(id: str, vote: Vote, user_data: dict = Depends(get_current_user)):
-    result = requests_collection.update_one({"_id": ObjectId(id)}, {"$inc": {"votes": 1}})
-    if result.matched_count == 0:
+def vote_request(id: str,request: Request, user_data: dict = Depends(get_current_user)):
+    user_id = user_data["username"]  
+    correlation_id = request.state.correlation_id
+    send_log(
+        log_type="INFO",
+        url="/music/requests{id}/vote",
+        message=f"User {user_id} created music vote",
+        service="music-service",
+        correlation_id=correlation_id
+    )
+    music_request = requests_collection.find_one({"_id": ObjectId(id)})
+    if not music_request:
         raise HTTPException(status_code=404, detail="Music request not found")
+
+    voters = music_request.get("voters", [])
+
+    if user_id in voters:
+        raise HTTPException(status_code=400, detail="You have already voted for this song")
+
+    requests_collection.update_one(
+        {"_id": ObjectId(id)},
+        {"$inc": {"votes": 1}, "$push": {"voters": user_id}}
+    )
+
     return {"message": "Vote recorded"}
 
+
 @app.get("/music/requests")
-def get_all_requests():
+def get_all_requests(request: Request):
+    correlation_id = request.state.correlation_id
+    send_log(
+        log_type="INFO",
+        url="/music/requests",
+        message=f"Created music request",
+        service="music-service",
+        correlation_id=correlation_id
+    )
     requests_list = list(requests_collection.find())
     return [request_serializer(r) for r in requests_list]
 

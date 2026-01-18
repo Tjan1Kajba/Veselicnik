@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from "react";
+import { showToast } from "../../utils/toast";
 
 interface ChangePasswordFormProps {
   onSuccess: () => void;
@@ -21,18 +22,24 @@ const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({
 
     // Frontend validation
     if (!newPassword.trim() || !confirmPassword.trim()) {
-      setError("Vsa polja so obvezna");
+      const msg = "Vsa polja so obvezna";
+      setError(msg);
+      showToast(msg, "error");
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setError("Novo geslo in potrditev gesla se ne ujemata");
+      const msg = "Novo geslo in potrditev gesla se ne ujemata";
+      setError(msg);
+      showToast(msg, "error");
       return;
     }
 
     if (newPassword.length < 4) {
       // Changed from 6 to 4 to match backend
-      setError("Novo geslo mora biti vsaj 4 znake dolgo");
+      const msg = "Novo geslo mora biti vsaj 4 znake dolgo";
+      setError(msg);
+      showToast(msg, "error");
       return;
     }
 
@@ -53,109 +60,125 @@ const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({
       );
 
       if (!res.ok) {
-        const errorData = await res.json();
-        console.log("Error response:", errorData); // For debugging
+        // Try to parse JSON; if it fails (e.g. plain-text 500), fall back to text
+        let errorMessage = `Napaka (${res.status}) pri spremembi gesla`;
 
-        // Check if it's a validation error
-        if (res.status === 422) {
-          // Handle Pydantic validation errors
-          if (errorData.detail && Array.isArray(errorData.detail)) {
-            const errorMessages = errorData.detail.map(
-              (err: any) =>
-                `${err.loc ? err.loc.join(".") + ": " : ""}${err.msg}`
-            );
-            throw new Error(errorMessages.join(", "));
+        try {
+          const errorData = await res.json();
+          console.log("Error response JSON:", errorData);
+
+          if (res.status === 422) {
+            // Handle Pydantic validation errors
+            if (errorData.detail && Array.isArray(errorData.detail)) {
+              const errorMessages = errorData.detail.map(
+                (err: any) =>
+                  `${err.loc ? err.loc.join(".") + ": " : ""}${err.msg}`
+              );
+              throw new Error(errorMessages.join(", "));
+            }
+            errorMessage =
+              errorData.detail || "Napaka pri validaciji podatkov (422)";
+          } else {
+            errorMessage =
+              errorData.detail ||
+              errorData.message ||
+              `Napaka (${res.status}) pri spremembi gesla`;
           }
-          throw new Error(errorData.detail || "Napaka pri validaciji podatkov");
+        } catch (parseErr) {
+          try {
+            const text = await res.text();
+            console.log("Error response text:", text);
+            if (text) {
+              errorMessage = text;
+            }
+          } catch {
+            // ignore, keep default message
+          }
         }
 
-        throw new Error(errorData.detail || "Napaka pri spremembi gesla");
+        throw new Error(errorMessage);
       }
 
-      const data = await res.json();
+      await res.json();
       setSuccess(true);
       setNewPassword("");
       setConfirmPassword("");
+      showToast("Geslo je bilo uspešno spremenjeno.", "success");
       onSuccess();
     } catch (err: any) {
       console.error("Error changing password:", err);
-      setError(err.message || "Napaka pri spremembi gesla");
+      const msg = err.message || "Napaka pri spremembi gesla";
+      setError(msg);
+      showToast(msg, "error");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ marginTop: 24, maxWidth: 400 }}>
-      <h2>Spremeni geslo</h2>
-
-      <div style={{ marginBottom: 16 }}>
-        <label style={{ display: "block", marginBottom: 4 }}>
-          Novo geslo:{" "}
-        </label>
-        <input
-          type="password"
-          value={newPassword}
-          onChange={(e) => setNewPassword(e.target.value)}
-          style={{ width: "100%", padding: 8 }}
-          disabled={loading}
-          placeholder="Vsaj 4 znake"
-        />
+    <form className="modern-form" onSubmit={handleSubmit}>
+      <div className="form-header">
+        <p className="loading-text">
+          Izberite novo, varno geslo za svoj račun.
+        </p>
       </div>
 
-      <div style={{ marginBottom: 16 }}>
-        <label style={{ display: "block", marginBottom: 4 }}>
-          Potrdi novo geslo:{" "}
-        </label>
-        <input
-          type="password"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          style={{ width: "100%", padding: 8 }}
-          disabled={loading}
-          placeholder="Ponovite geslo"
-        />
+      <div className="form-grid">
+        <div className="input-group">
+          <label className="input-label" htmlFor="new-password">
+            Novo geslo
+          </label>
+          <input
+            id="new-password"
+            type="password"
+            className="password-input"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            disabled={loading}
+            placeholder="Vsaj 4 znake"
+          />
+        </div>
+
+        <div className="input-group">
+          <label className="input-label" htmlFor="confirm-password">
+            Potrdi novo geslo
+          </label>
+          <input
+            id="confirm-password"
+            type="password"
+            className="password-input"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            disabled={loading}
+            placeholder="Ponovite geslo"
+          />
+        </div>
       </div>
 
       <button
         type="submit"
-        style={{
-          padding: "8px 16px",
-          backgroundColor: loading ? "#ccc" : "#007bff",
-          color: "white",
-          border: "none",
-          borderRadius: 4,
-          cursor: loading ? "not-allowed" : "pointer",
-        }}
+        className="modern-button primary"
         disabled={loading}
       >
-        {loading ? "Nalagam..." : "Spremeni geslo"}
+        {loading ? "Shranjujem novo geslo..." : "Spremeni geslo"}
       </button>
 
       {success && (
-        <div
-          style={{
-            color: "green",
-            marginTop: 12,
-            padding: 8,
-            backgroundColor: "#f0fff0",
-            borderRadius: 4,
-          }}
-        >
-          ✓ Geslo uspešno spremenjeno!
+        <div className="success-banner">
+          <div className="success-icon">✓</div>
+          <div className="success-content">
+            <h4>Geslo uspešno spremenjeno</h4>
+            <p>Vaše novo geslo je bilo shranjeno.</p>
+          </div>
         </div>
       )}
       {error && (
-        <div
-          style={{
-            color: "red",
-            marginTop: 12,
-            padding: 8,
-            backgroundColor: "#fff0f0",
-            borderRadius: 4,
-          }}
-        >
-          {error}
+        <div className="error-banner">
+          <div className="error-icon">!</div>
+          <div className="error-content">
+            <h4>Napaka pri spremembi gesla</h4>
+            <p>{error}</p>
+          </div>
         </div>
       )}
     </form>

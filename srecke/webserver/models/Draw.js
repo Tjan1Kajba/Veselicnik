@@ -1,10 +1,12 @@
 const mongoose = require("mongoose");
 
 const DrawSchema = new mongoose.Schema({
+  veselica_id: { type: String, required: true },
   date: { type: Date, default: Date.now },
   winners: [
     {
       ticketId: { type: mongoose.Schema.Types.ObjectId, ref: "Ticket" },
+      userId: { type: String, required: true },
       prizeId: { type: mongoose.Schema.Types.ObjectId, ref: "Prize" }
     }
   ]

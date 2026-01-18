@@ -1,6 +1,9 @@
+/* Stran: /register */
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { showToast } from "../../utils/toast";
+import "./register.css";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -11,13 +14,21 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    document.title = "Registracija";
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
     if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      const msg = "Gesli se ne ujemata";
+      setError(msg);
+      showToast(msg, "error");
       return;
     }
+
     setLoading(true);
     try {
       const res = await fetch("http://localhost:8002/uporabnik/registracija", {
@@ -30,13 +41,26 @@ export default function RegisterPage() {
         }),
       });
       if (!res.ok) {
-        const data = await res.json();
-        setError(data.detail || data.message || "Registration failed");
+        let msg = "Registracija ni uspela";
+        try {
+          const data = await res.json();
+          msg = data.detail || data.message || msg;
+        } catch {
+          // ignore parse error, keep default message
+        }
+        setError(msg);
+        showToast(msg, "error");
       } else {
+        showToast(
+          "Registracija uspešna. Preusmerjam na prijavo ...",
+          "success"
+        );
         router.push("/login");
       }
     } catch (err) {
-      setError("Network error");
+      const msg = "Napaka omrežja pri registraciji";
+      setError(msg);
+      showToast(msg, "error");
     } finally {
       setLoading(false);
     }
@@ -46,14 +70,14 @@ export default function RegisterPage() {
     <div className="split-section">
       <div className="right">
         <main>
-          <h1>Register</h1>
+          <h1>Registracija</h1>
           <form onSubmit={handleSubmit}>
             <label htmlFor="username">Uporabniško ime</label>
             <input
               id="username"
               type="text"
               value={username}
-              onChange={e => setUsername(e.target.value)}
+              onChange={(e) => setUsername(e.target.value)}
               required
               autoComplete="username"
             />
@@ -62,7 +86,7 @@ export default function RegisterPage() {
               id="email"
               type="email"
               value={email}
-              onChange={e => setEmail(e.target.value)}
+              onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
             />
@@ -71,7 +95,7 @@ export default function RegisterPage() {
               id="password"
               type="password"
               value={password}
-              onChange={e => setPassword(e.target.value)}
+              onChange={(e) => setPassword(e.target.value)}
               required
               autoComplete="new-password"
             />
@@ -80,69 +104,70 @@ export default function RegisterPage() {
               id="confirmPassword"
               type="password"
               value={confirmPassword}
-              onChange={e => setConfirmPassword(e.target.value)}
+              onChange={(e) => setConfirmPassword(e.target.value)}
               required
               autoComplete="new-password"
             />
             {error && <div className="error-message">{error}</div>}
             <button type="submit" disabled={loading}>
-              {loading ? "Registriranje..." : "Registriraj se"}
+              {loading ? "Registriram..." : "Registriraj se"}
             </button>
           </form>
-          <p>Že imate račun? <a href="/login">Prijavite se</a></p>
+          <p>
+            Že imate račun? <a href="/login">Prijavite se</a>
+          </p>
         </main>
       </div>
       <div className="left">
         <div className="big">VESELIČNIK</div>
-          <div className="desc">
-            Vaša vse‑v‑enem digitalna rešitev za brezhibno veselico. Planiranje
-            dogodka je izziv. Veseličnik pretvori ta izziv v enostavno, gladko
-            in zabavno izkušnjo za organizatorje in goste. Ne skrbite več za
-            kaos – vse, kar potrebujete, je v eni pametni aplikaciji.
-          </div>
-          <ul className="feature-list">
-            <li>
-              <span
-                className="feature-dot"
-                style={{ background: "#ed8458" }}
-              ></span>
-              <span role="img" aria-label="food">
-                🍔
-              </span>
-              <span style={{ marginLeft: 8 }}>Naročanje hrane & pijač</span>
-            </li>
-            <li>
-              <span
-                className="feature-dot"
-                style={{ background: "#ed8458" }}
-              ></span>
-              <span role="img" aria-label="music">
-                🎵
-              </span>
-              <span style={{ marginLeft: 8 }}>Glasbene želje</span>
-            </li>
-            <li>
-              <span
-                className="feature-dot"
-                style={{ background: "#ed8458" }}
-              ></span>
-              <span role="img" aria-label="lottery">
-                🎟️
-              </span>
-              <span style={{ marginLeft: 8 }}>Srečkolov</span>
-            </li>
-            <li>
-              <span
-                className="feature-dot"
-                style={{ background: "#ed8458" }}
-              ></span>
-              <span role="img" aria-label="lost-found">
-                🧳
-              </span>
-              <span style={{ marginLeft: 8 }}>Izgubljeno & najdeno</span>
-            </li>
-          </ul>
-    
+        <div className="desc">
+          Vaša vse‑v‑enem digitalna rešitev za brezhibno veselico. Planiranje
+          dogodka je izziv. Veseličnik pretvori ta izziv v enostavno, gladko in
+          zabavno izkušnjo za organizatorje in goste. Ne skrbite več za kaos –
+          vse, kar potrebujete, je v eni pametni aplikaciji.
+        </div>
+        <ul className="feature-list">
+          <li>
+            <span
+              className="feature-dot"
+              style={{ background: "#ed8458" }}
+            ></span>
+            <span role="img" aria-label="food">
+              🍔
+            </span>
+            <span style={{ marginLeft: 8 }}>Naročanje hrane & pijač</span>
+          </li>
+          <li>
+            <span
+              className="feature-dot"
+              style={{ background: "#ed8458" }}
+            ></span>
+            <span role="img" aria-label="music">
+              🎵
+            </span>
+            <span style={{ marginLeft: 8 }}>Glasbene želje</span>
+          </li>
+          <li>
+            <span
+              className="feature-dot"
+              style={{ background: "#ed8458" }}
+            ></span>
+            <span role="img" aria-label="lottery">
+              🎟️
+            </span>
+            <span style={{ marginLeft: 8 }}>Srečkolov</span>
+          </li>
+          <li>
+            <span
+              className="feature-dot"
+              style={{ background: "#ed8458" }}
+            ></span>
+            <span role="img" aria-label="lost-found">
+              🧳
+            </span>
+            <span style={{ marginLeft: 8 }}>Izgubljeno & najdeno</span>
+          </li>
+        </ul>
       </div>
     </div>
   );
