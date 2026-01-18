@@ -1,6 +1,6 @@
+"use client";
 import Link from "next/link";
 import React from "react";
-import { useRouter } from "next/navigation";
 import {
   FaUser,
   FaSignOutAlt,
@@ -15,7 +15,6 @@ import {
 import { UserSidebarProps } from "../types";
 
 export default function UserSidebar({ user, handleLogout, activeItem = 'profil' }: UserSidebarProps) {
-  const router = useRouter();
   return (
     <div className="modern-sidebar">
       <div className="sidebar-header">

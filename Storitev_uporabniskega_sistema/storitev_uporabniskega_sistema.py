@@ -170,6 +170,7 @@ app.add_middleware(
         "http://localhost:8002",
         "http://localhost:8003",
         "http://localhost:8004",
+        "https://veselicnik.onrender.com"
     ],
     allow_credentials=True,
     allow_methods=["*"],

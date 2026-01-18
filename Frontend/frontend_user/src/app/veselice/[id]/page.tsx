@@ -35,7 +35,7 @@ import UserSidebar from "../../../components/UserSidebar";
 const VeselicaDetailPage = () => {
   const params = useParams();
   const router = useRouter();
-  const veselicaId = params.id as string;
+  const veselicaId = params?.id as string;
 
   const [user, setUser] = useState<UserData | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);

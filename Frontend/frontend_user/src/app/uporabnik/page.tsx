@@ -5,6 +5,7 @@ import ChangePasswordForm from "./ChangePasswordForm";
 import UpdateUserForm from "./UpdateUserForm";
 import AdminSidebar from "../../components/AdminSidebar";
 import UserSidebar from "../../components/UserSidebar";
+import StatsBlock from "../../components/StatsBlock";
 import {
   FaUser,
   FaSignOutAlt,
@@ -304,6 +305,10 @@ const UserProfile = () => {
 
   const displayData = getDisplayData();
 
+  // Statistik will be rendered by a dedicated client component to avoid
+  // hook-order issues in this page component.
+  // See: src/components/StatsBlock.tsx
+
   return (
     <div className="modern-dashboard">
       {/* Sidebar */}
@@ -474,6 +479,9 @@ const UserProfile = () => {
               </div>
             </div>
           </div>
+
+          {/* --- STATISTIKA BLOK (separated component) --- */}
+          <StatsBlock isAdmin={user?.tip_uporabnika === "admin"} />
         </div>
       </div>
 

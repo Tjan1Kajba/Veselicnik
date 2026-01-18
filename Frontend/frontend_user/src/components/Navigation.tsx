@@ -12,7 +12,7 @@ export default function Navigation() {
   const [loading, setLoading] = useState(true);
 
   // Hide nav on login/register
-  if (pathname.startsWith("/login") || pathname.startsWith("/register"))
+  if (pathname?.startsWith("/login") || pathname?.startsWith("/register"))
     return null;
 
   useEffect(() => {

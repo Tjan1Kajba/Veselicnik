@@ -295,6 +295,7 @@ services:
     working_dir: /app
     environment:
       - NODE_ENV=production
+      - STATISTIKA_URL=https://veselicnik.onrender.com/statistika
     networks:
       - app-network
     restart: unless-stopped
