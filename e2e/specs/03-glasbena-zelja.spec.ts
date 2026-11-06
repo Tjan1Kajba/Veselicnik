@@ -40,7 +40,8 @@ test.describe("TC-GLASBA-001: Oddaja glasbene želje", () => {
     // ta pa na music-service pošlje POST /music/requests.
     await test.step("1. Prijava kot testuser1, izbira veselice na /veselice-pregled", async () => {
       await loginUi(page, TESTUSER.username, TESTUSER.password);
-      await page.goto("/veselice-pregled");
+      await page.locator('a[href="/veselice-pregled"]').first().click();
+      await expect(page).toHaveURL(/\/veselice-pregled$/);
       await openVeselica(page, veselica.ime, veselica.id);
       await expect(page).toHaveURL(new RegExp(`/veselice/${veselica.id}$`));
     });

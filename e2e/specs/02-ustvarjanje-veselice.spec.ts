@@ -5,7 +5,6 @@ import {
   URLS,
   cleanupVeselice,
   ensureTestUser,
-  futureLocal,
   getVeselica,
   http,
   loginAdmin,
@@ -28,7 +27,8 @@ test.describe("TC-VESELICA-001: Ustvarjanje veselice", () => {
   });
 
   test("glavni scenarij: administrator ustvari veselico in jo vidi uporabnik", async ({ page, browser }) => {
-    const ime = uniqueName("Poletna veselica 2026");
+    // Podatki po PDF: čas 20. 12. 2026 ob 20:00 (ime je zaradi čiščenja in vzporednih zagonov unikatno, s predpono TEST).
+    const ime = uniqueName("TEST");
     const lokacija = "Gasilski dom Maribor";
     const opis = "Glasba v živo, hrana in srečelov.";
     let veselicaId = "";
@@ -39,14 +39,15 @@ test.describe("TC-VESELICA-001: Ustvarjanje veselice", () => {
     });
 
     await test.step("2. Stran /veselice: obrazec in seznam, starostna omejitev je privzeto 18", async () => {
-      await page.goto("/veselice");
+      await page.locator('a[href="/veselice"]').filter({ hasText: /^\s*Upravljanje\s*$/ }).first().click();
+      await expect(page).toHaveURL(/\/veselice$/);
       await page.getByRole("button", { name: /Nova veselica/ }).click();
       await expect(field(page, "Minimalna starost za vstop").locator("input")).toHaveValue("18");
     });
 
     await test.step("3. Izpolnitev vseh polj in potrditev pošlje POST /veselice", async () => {
       await page.getByPlaceholder("npr. Novoletska zabava 2025").fill(ime);
-      await field(page, "Datum in ura").locator("input").fill(futureLocal(30));
+      await field(page, "Datum in ura").locator("input").fill("2026-12-20T20:00");
       await page.getByPlaceholder("npr. Ljubljana, Kongresni trg 1").fill(lokacija);
       await page.getByPlaceholder("0 = brez omejitve").fill("100");
       await field(page, "Minimalna starost za vstop").locator("input").fill("18");
@@ -81,7 +82,9 @@ test.describe("TC-VESELICA-001: Ustvarjanje veselice", () => {
       expect(r.body.st_pirjaveljenih).toBe(0);
       expect(r.body.prijavljeni_uporabniki).toEqual([]);
       expect(r.body.prijavljeni_uporabniki_podatki).toEqual([]);
-      expect(new Date(r.body.cas).getTime()).toBeGreaterThan(Date.now());
+      const cas = new Date(r.body.cas);
+      expect(cas.getTime()).toBeGreaterThan(Date.now());
+      expect([cas.getFullYear(), cas.getMonth() + 1, cas.getDate(), cas.getHours()]).toEqual([2026, 12, 20, 20]);
     });
 
     await test.step("6. Navaden uporabnik vidi veselico, upravljanje /veselice mu ni dostopno", async () => {

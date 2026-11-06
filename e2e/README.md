@@ -9,7 +9,7 @@ Skripte kombinirajo teste v brskalniku (UI) in neposredne klice API-jev.
 | `specs/02-ustvarjanje-veselice.spec.ts` | TC-VESELICA-001 Ustvarjanje veselice |
 | `specs/03-glasbena-zelja.spec.ts` | TC-GLASBA-001 Oddaja glasbene želje |
 | `specs/04-brisanje-veselice.spec.ts` | TC-VESELICA-101 Brisanje veselice |
-| `specs/05-najden-predmet.spec.ts` | TC-NAJDENO-001 Dodajanje najdenega predmeta |
+| `specs/05-narocanje-hrane.spec.ts` | TC-HRANA-001 Naročevanje hrane |
 
 ## Zagon
 
@@ -32,8 +32,8 @@ npm run report           # HTML poročilo
 
 ## Podatki in čiščenje
 
-- Testni uporabnik `testuser1` / `Geslo123` (in `testuser2` v scenariju 5) se ustvari ob prvem zagonu.
-- Veselice, glasbene želje, najdeni predmeti in jedi imajo unikatna imena in se po testih izbrišejo prek API-ja.
+- Testni uporabnik `testuser1` / `Geslo123` (in `testuser2` v negativnem testu scenarija 5) se ustvari ob prvem zagonu.
+- Veselice, glasbene želje, naročila in jedi imajo unikatna imena in se po testih izbrišejo prek API-ja.
   Skripte nikoli ne kličejo `DELETE /music/requests`, ki izbriše vse želje.
 - Testi tečejo zaporedno (en delavec), ker si delijo bazo.
 
@@ -41,6 +41,5 @@ npm run report           # HTML poročilo
 
 - Vmesnik glasbeno željo odda samo ob nakupu srečke (`POST /ticketsAndMusicRequest`), ki nato pokliče
   `POST /music/requests`. Scenarij 3 zato uporablja ta tok, `POST /music/requests` pa preverja posebej prek API-ja.
-- Obrazec za najdeni predmet v vmesniku vedno pokliče `POST /foundAndOrderFood`. Glavni klic `POST /found`
-  iz scenarija 5 je zato izveden prek API-ja, sestavljeni klic pa prek vmesnika kot variacija.
+- V scenariju 3 PDF predvideva gumb Dodaj (`POST /music/requests`), vendar ga vmesnik ne uporablja (funkcija `handleCreateMusicRequest` ni vezana na noben gumb). Zato UI test uporabi nakup srečke, `POST /music/requests` pa je preverjen prek API-ja.
 - Po brisanju veselice z udeležencem skripta samo zabeleži dejansko stanje (odprto vprašanje iz scenarija).

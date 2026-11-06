@@ -29,14 +29,15 @@ test.describe("TC-VESELICA-101: Brisanje veselice", () => {
     await cleanupVeselice(adminToken, zaCiscenje);
   });
 
-  test("glavni scenarij: administrator izbriše veselico A, kontrolna veselica C ostane", async ({ page }) => {
-    const A = await createVeselica(adminToken, { ime_veselice: uniqueName("Veselica A za brisanje") });
+  test("glavni scenarij: administrator izbriše veselico A, kontrolna veselica C ostane", async ({ page, browser }) => {
+    const A =await createVeselica(adminToken, { ime_veselice: uniqueName("Veselica A za brisanje") });
     const C = await createVeselica(adminToken, { ime_veselice: uniqueName("Veselica C kontrolna") });
     zaCiscenje.push(A.id, C.id);
 
     await test.step("1. Prijava kot admin, na /veselice sta veselici A in C", async () => {
       await loginUi(page, ADMIN.username, ADMIN.password);
-      await page.goto("/veselice");
+      await page.locator('a[href="/veselice"]').filter({ hasText: /^\s*Upravljanje\s*$/ }).first().click();
+      await expect(page).toHaveURL(/\/veselice$/);
       await expect(page.getByRole("heading", { name: A.ime })).toBeVisible();
       await expect(page.getByRole("heading", { name: C.ime })).toBeVisible();
     });
@@ -62,22 +63,36 @@ test.describe("TC-VESELICA-101: Brisanje veselice", () => {
       await expect(page.getByRole("heading", { name: C.ime })).toBeVisible();
     });
 
-    await test.step("4. GET /veselice/{id_A} vrne zavrnitev (veselica ne obstaja)", async () => {
+    await test.step("5. Po osvežitvi strani (F5) veselice A še vedno ni", async () => {
+      await page.reload();
+      await expect(page.getByRole("heading", { name: C.ime })).toBeVisible();
+      await expect(page.getByRole("heading", { name: A.ime })).toHaveCount(0);
+    });
+
+    await test.step("6. GET /veselice/{id_A} vrne zavrnitev (veselica ne obstaja)", async () => {
       const r = await getVeselica(adminToken, A.id);
       expect(r.status).toBe(404);
       expect(r.body.detail).toBe("Veselica ne obstaja");
     });
 
-    await test.step("5. Navaden uporabnik na seznamu veselice A ne vidi, C vidi", async () => {
-      const { token } = await loginTestUser();
-      const r = await http("GET", `${URLS.user}/veselice`, { token });
-      expect(r.status).toBe(200);
-      const ids = r.body.map((v: any) => v.id);
-      expect(ids).not.toContain(A.id);
-      expect(ids).toContain(C.id);
+    await test.step("7. Odjava, prijava kot testuser1: na /veselice-pregled A ni, C je", async () => {
+      const kontekst = await browser.newContext({ baseURL: URLS.frontend });
+      const stran = await kontekst.newPage();
+      try {
+        await loginUi(stran, TESTUSER.username, TESTUSER.password);
+        await stran.goto("/veselice-pregled");
+        await expect(stran.getByText(C.ime).first()).toBeVisible();
+        await expect(stran.getByText(A.ime)).toHaveCount(0);
+        const r = await http("GET", `${URLS.user}/veselice`, { token: (await loginTestUser()).token });
+        const ids = r.body.map((v: any) => v.id);
+        expect(ids).not.toContain(A.id);
+        expect(ids).toContain(C.id);
+      } finally {
+        await kontekst.close();
+      }
     });
 
-    await test.step("6. Ponovno brisanje A je zavrnjeno brez napake strežnika", async () => {
+    await test.step("8. Ponovno brisanje A je zavrnjeno brez napake strežnika", async () => {
       const r = await deleteVeselica(adminToken, A.id);
       expect(r.status).toBe(404);
       expect(r.status).toBeLessThan(500);
