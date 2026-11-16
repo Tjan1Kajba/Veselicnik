@@ -10,6 +10,7 @@ Skripte kombinirajo teste v brskalniku (UI) in neposredne klice API-jev.
 | `specs/03-glasbena-zelja.spec.ts` | TC-GLASBA-001 Oddaja glasbene želje |
 | `specs/04-brisanje-veselice.spec.ts` | TC-VESELICA-101 Brisanje veselice |
 | `specs/05-narocanje-hrane.spec.ts` | TC-HRANA-001 Naročevanje hrane |
+| `specs/06-ekvivalencni-razredi-in-mejne-vrednosti.spec.ts` | Ekvivalenčni razredi in mejne vrednosti za TC-VESELICA-001 (številska polja), TC-PRIJAVA-001 in TC-GLASBA-001 |
 
 ## Zagon
 
@@ -43,3 +44,7 @@ npm run report           # HTML poročilo
   `POST /music/requests`. Scenarij 3 zato uporablja ta tok, `POST /music/requests` pa preverja posebej prek API-ja.
 - V scenariju 3 PDF predvideva gumb Dodaj (`POST /music/requests`), vendar ga vmesnik ne uporablja (funkcija `handleCreateMusicRequest` ni vezana na noben gumb). Zato UI test uporabi nakup srečke, `POST /music/requests` pa je preverjen prek API-ja.
 - Po brisanju veselice z udeležencem skripta samo zabeleži dejansko stanje (odprto vprašanje iz scenarija).
+
+## Ekvivalenčni razredi in mejne vrednosti (datoteka 06)
+
+Dokumentacija določa samo: največ prijavljenih 0 = brez omejitve, privzeta starost 18. Ostale meje (največ prijavljenih 0-1000, starost 0-99, besedilo 1-100 znakov, presledki niso veljavni) so predpostavke (P). Zaledje jih ne uveljavlja, zato so ti primeri označeni s `test.fail`: Playwright jih šteje za uspešne, dokler zaledje meje ne uveljavi. Takrat javi »nepričakovano uspešen« in oznako `p: true` je treba odstraniti.
