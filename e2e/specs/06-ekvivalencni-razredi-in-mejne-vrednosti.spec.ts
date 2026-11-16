@@ -18,13 +18,11 @@ import { expectToast, field, loginUi, openVeselica } from "../helpers/ui";
  * Črna škatla: particioniranje na ekvivalenčne razrede in analiza mejnih vrednosti.
  *
  * Iz dokumentacije izhajata samo dve pravili: pri "največ prijavljenih" 0 pomeni brez omejitve,
- * privzeta starostna omejitev je 18. Vse ostale meje so PREDPOSTAVKE (P) iz analize testnih primerov:
+ * privzeta starostna omejitev je 18. Preostale meje so dogovorjene in uveljavljene v zaledju:
  *   - največ prijavljenih: celo število 0-1000
  *   - minimalna starost: celo število 0-99
- *   - ime veselice in besedilna polja: 1-100 znakov, samo presledki niso veljavni
- * Zaledje teh meja (zaenkrat) ne uveljavlja (preverja samo tip podatka). Primeri, ki to pravilo
- * preverjajo, so zato označeni kot "pričakovano neuspešni" (test.fail). Ko razvijalci mejo uveljavijo,
- * test javi "nepričakovano uspešen" in oznako je treba odstraniti.
+ *   - ime veselice, lokacija, ime pesmi, izvajalec: 1-100 znakov, samo presledki niso veljavni
+ * Zavrnitev mora biti vedno 4xx (nikoli napaka strežnika 5xx).
  */
 
 const dolg = (n: number, znak = "A") => znak.repeat(n);
@@ -33,7 +31,6 @@ type Primer = {
   naziv: string;
   vrednost: unknown;
   ok: boolean; // ali specifikacija vrednost sprejme
-  p?: boolean; // pravilo je predpostavka, ki ga zaledje ne uveljavlja
 };
 
 // ---------------------------------------------------------------------------
@@ -67,7 +64,6 @@ test.describe("TC-VESELICA-001: ekvivalenčni razredi in mejne vrednosti", () =>
 
   /** Preveri sprejem ali zavrnitev, zavrnitev mora biti 4xx (nikoli 5xx). */
   function preveri(r: { status: number; body: any }, p: Primer, polje: string) {
-    if (p.p) test.fail(true, `Pravilo (P) ni uveljavljeno v zaledju: ${p.naziv}`);
     if (p.ok) {
       expect(r.status, `${p.naziv} mora biti sprejeto`).toBe(200);
       expect(r.body[polje]).toBe(p.vrednost);
@@ -79,15 +75,15 @@ test.describe("TC-VESELICA-001: ekvivalenčni razredi in mejne vrednosti", () =>
 
   // A) Maksimalno število prijavljenih: EC1-EC7, meje 0/1 in 1000/1001
   const maxPrimeri: Primer[] = [
-    { naziv: "EC1 negativno (-5)", vrednost: -5, ok: false, p: true },
-    { naziv: "meja pod 0 (-1)", vrednost: -1, ok: false, p: true },
+    { naziv: "EC1 negativno (-5)", vrednost: -5, ok: false },
+    { naziv: "meja pod 0 (-1)", vrednost: -1, ok: false },
     { naziv: "EC2/meja 0 (brez omejitve)", vrednost: 0, ok: true },
     { naziv: "meja 1", vrednost: 1, ok: true },
     { naziv: "EC3 tipična vrednost (100)", vrednost: 100, ok: true },
     { naziv: "meja 999", vrednost: 999, ok: true },
     { naziv: "meja 1000", vrednost: 1000, ok: true },
-    { naziv: "meja 1001", vrednost: 1001, ok: false, p: true },
-    { naziv: "EC4 nad zgornjo mejo (5000)", vrednost: 5000, ok: false, p: true },
+    { naziv: "meja 1001", vrednost: 1001, ok: false },
+    { naziv: "EC4 nad zgornjo mejo (5000)", vrednost: 5000, ok: false },
     { naziv: "EC5 decimalno (12,5)", vrednost: 12.5, ok: false },
     { naziv: "EC6 neštevilsko (abc)", vrednost: "abc", ok: false },
   ];
@@ -132,8 +128,8 @@ test.describe("TC-VESELICA-001: ekvivalenčni razredi in mejne vrednosti", () =>
 
   // B) Minimalna starost: EC1-EC6, meje 0/1, 17/18/19, 99/100
   const starostPrimeri: Primer[] = [
-    { naziv: "EC1 negativno (-3)", vrednost: -3, ok: false, p: true },
-    { naziv: "meja pod 0 (-1)", vrednost: -1, ok: false, p: true },
+    { naziv: "EC1 negativno (-3)", vrednost: -3, ok: false },
+    { naziv: "meja pod 0 (-1)", vrednost: -1, ok: false },
     { naziv: "meja 0", vrednost: 0, ok: true },
     { naziv: "meja 1", vrednost: 1, ok: true },
     { naziv: "EC2 mladoletni (10)", vrednost: 10, ok: true },
@@ -143,8 +139,8 @@ test.describe("TC-VESELICA-001: ekvivalenčni razredi in mejne vrednosti", () =>
     { naziv: "EC4 (21)", vrednost: 21, ok: true },
     { naziv: "meja 98", vrednost: 98, ok: true },
     { naziv: "meja 99", vrednost: 99, ok: true },
-    { naziv: "meja 100", vrednost: 100, ok: false, p: true },
-    { naziv: "EC5 nad zgornjo mejo (150)", vrednost: 150, ok: false, p: true },
+    { naziv: "meja 100", vrednost: 100, ok: false },
+    { naziv: "EC5 nad zgornjo mejo (150)", vrednost: 150, ok: false },
     { naziv: "EC6 decimalno (17,5)", vrednost: 17.5, ok: false },
     { naziv: "EC6 neštevilsko (abc)", vrednost: "abc", ok: false },
   ];
@@ -163,11 +159,11 @@ test.describe("TC-VESELICA-001: ekvivalenčni razredi in mejne vrednosti", () =>
 
   // C) Ime veselice (besedilo)
   const imePrimeri: Primer[] = [
-    { naziv: "prazno ime", vrednost: "", ok: false, p: true },
-    { naziv: "samo presledki", vrednost: "   ", ok: false, p: true },
+    { naziv: "prazno ime", vrednost: "", ok: false },
+    { naziv: "samo presledki", vrednost: "   ", ok: false },
     { naziv: "meja 1 znak", vrednost: "A", ok: true },
     { naziv: "meja 100 znakov", vrednost: dolg(100), ok: true },
-    { naziv: "meja 101 znakov", vrednost: dolg(101), ok: false, p: true },
+    { naziv: "meja 101 znakov", vrednost: dolg(101), ok: false },
     { naziv: "posebni znaki in šumniki", vrednost: "Čaj & šola <b>", ok: true },
   ];
   for (const p of imePrimeri) {
@@ -340,17 +336,16 @@ test.describe("TC-GLASBA-001: ekvivalenčni razredi in mejne vrednosti", () => {
     });
   }
 
-  const neveljavni: { naziv: string; pesem: unknown; izvajalec: unknown; p?: boolean }[] = [
+  const neveljavni: { naziv: string; pesem: unknown; izvajalec: unknown }[] = [
     { naziv: "EC2 prazna pesem", pesem: "", izvajalec: "Queen" },
     { naziv: "EC3 prazen izvajalec", pesem: "Bohemian Rhapsody", izvajalec: "" },
     { naziv: "EC4 obe polji prazni", pesem: "", izvajalec: "" },
-    { naziv: "EC5 samo presledki", pesem: "   ", izvajalec: "   ", p: true },
-    { naziv: "meja 101 znakov (pesem)", pesem: dolg(101), izvajalec: "Queen", p: true },
-    { naziv: "meja 101 znakov (izvajalec)", pesem: "Pesem", izvajalec: dolg(101), p: true },
+    { naziv: "EC5 samo presledki", pesem: "   ", izvajalec: "   " },
+    { naziv: "meja 101 znakov (pesem)", pesem: dolg(101), izvajalec: "Queen" },
+    { naziv: "meja 101 znakov (izvajalec)", pesem: "Pesem", izvajalec: dolg(101) },
   ];
   for (const p of neveljavni) {
     test(`zavrnjeno: ${p.naziv}`, async () => {
-      if (p.p) test.fail(true, "Pravilo (P) ni uveljavljeno v zaledju (prazni presledki, dolžina)");
       const r = await kupi(p.pesem, p.izvajalec);
       expect(r.status).toBeLessThan(500);
       expect(r.status, `${p.naziv} mora biti zavrnjeno`).toBe(400);

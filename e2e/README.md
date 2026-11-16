@@ -47,4 +47,4 @@ npm run report           # HTML poročilo
 
 ## Ekvivalenčni razredi in mejne vrednosti (datoteka 06)
 
-Dokumentacija določa samo: največ prijavljenih 0 = brez omejitve, privzeta starost 18. Ostale meje (največ prijavljenih 0-1000, starost 0-99, besedilo 1-100 znakov, presledki niso veljavni) so predpostavke (P). Zaledje jih ne uveljavlja, zato so ti primeri označeni s `test.fail`: Playwright jih šteje za uspešne, dokler zaledje meje ne uveljavi. Takrat javi »nepričakovano uspešen« in oznako `p: true` je treba odstraniti.
+Dokumentacija določa: največ prijavljenih 0 = brez omejitve, privzeta starost 18. Preostale meje so uveljavljene v zaledju (user_service, music-service, srecke_web): največ prijavljenih 0-1000, starost 0-99, besedilna polja 1-100 znakov, samo presledki niso veljavni. Testi preverjajo vse razrede in meje. Po spremembi zaledja je treba storitve ponovno zgraditi (`docker compose up -d --build`).

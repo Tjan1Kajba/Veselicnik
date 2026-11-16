@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pymongo import MongoClient
 from passlib.context import CryptContext
-from pydantic import BaseModel, EmailStr, field_validator, model_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 from bson import ObjectId
@@ -293,7 +293,8 @@ class TokenForVerification(BaseModel):
     token: str
 
 
-class UstvariVeselico(BaseModel):
+class OsnovaVeselice(BaseModel):
+    """Polja veselice brez omejitev (uporablja se za odgovore, da stari zapisi v bazi ne povzročijo napake)."""
     cas: datetime
     lokacija: str
     ime_veselice: str
@@ -302,7 +303,25 @@ class UstvariVeselico(BaseModel):
     opis_dogodka: Optional[str] = None
 
 
-class OdgovorVeselice(UstvariVeselico):
+class UstvariVeselico(BaseModel):
+    """Vhodni podatki za novo veselico z omejitvami vnosa."""
+    cas: datetime
+    # Besedilo: 1-100 znakov, začetni in končni presledki se odstranijo (samo presledki niso veljavni).
+    lokacija: str = Field(..., min_length=1, max_length=100)
+    ime_veselice: str = Field(..., min_length=1, max_length=100)
+    # 0 = brez omejitve, zgornja meja 1000.
+    max_udelezencev: int = Field(0, ge=0, le=1000)
+    # Starostna omejitev 0-99, privzeto 18.
+    starost_za_vstop: Optional[int] = Field(18, ge=0, le=99)
+    opis_dogodka: Optional[str] = None
+
+    @field_validator("lokacija", "ime_veselice", mode="before")
+    @classmethod
+    def odstrani_presledke(cls, v):
+        return v.strip() if isinstance(v, str) else v
+
+
+class OdgovorVeselice(OsnovaVeselice):
     id: str
     ustvaril_uporabnik_id: str
     ustvaril_uporabnik_ime: str

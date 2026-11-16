@@ -34,9 +34,19 @@ exports.createTicket = async (req, res) => {
 };
 
 exports.createTicketAndMusicRequest = async (req, res) => {
-  const { veselica_id, songName, artist } = req.body;
+  const { veselica_id } = req.body;
+  const MAX_DOLZINA = 100;
+  // Ime pesmi in izvajalec: obvezna niza, 1-100 znakov, samo presledki niso veljavni.
+  const songName = typeof req.body.songName === "string" ? req.body.songName.trim() : "";
+  const artist = typeof req.body.artist === "string" ? req.body.artist.trim() : "";
 
-  if (!veselica_id || !songName || !artist) {
+  if (
+    !veselica_id ||
+    !songName ||
+    !artist ||
+    songName.length > MAX_DOLZINA ||
+    artist.length > MAX_DOLZINA
+  ) {
 
     // Send log to RabbitMQ
     await sendLog(
